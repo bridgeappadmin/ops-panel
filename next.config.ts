@@ -4,6 +4,8 @@ import type { NextConfig } from 'next';
 const apiUrl = process.env.OPS_API_URL ?? 'http://localhost:4010';
 
 const nextConfig: NextConfig = {
+  // next dev writes an AGENTS.md when it detects a coding agent; this repo doesn't keep one.
+  agentRules: false,
   turbopack: {
     rules: { '*.css': { loaders: ['@tailwindcss/turbopack'], as: '*.css' } },
   },

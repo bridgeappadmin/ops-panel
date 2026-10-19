@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Tazmify design tokens, Direction B · Violet. The one copy of client/src/theme/tazmify.ts in this app.
+ * Tailwind's own palette, type sizes, radii and shadows are cleared, so only these exist as utilities.
+ *
+ * Alpha tints are Tailwind opacity modifiers on these colours: alpha.violet(0.12) is `bg-violet/12`,
+ * alpha.ink(0.42) is `bg-ink/42`, alpha.white(0.72) is `text-white/72`.
+ * Spacing is Tailwind's 4px step, which is the client's scale: xs 4 = 1, sm 8 = 2, md 12 = 3, lg 16 = 4,
+ * xl 20 = 5, xxl 24 = 6 (`p-4` is space.lg). The page gutter is `px-gutter`.
+ */
+@theme {
+  --color-*: initial;
+  /* brand */
+  --color-violet: #6D57FC;
+  --color-violet-pressed: #5B47E8;
+  --color-violet-deep: #261E58; /* header bands; tint for every shadow */
+  --color-lavender: #C9BFFF;
+  --color-lavender-mid: #B0A4FD;
+  /* tints */
+  --color-violet-tint: #E8E4FF;
+  --color-surface-tint: #F0EDFB;
+  --color-field: #F4F3F9;
+  --color-line: #EAE7F5;
+  --color-line-strong: #DAD7E5;
+  --color-dot: #D8D2F2;
+  /* neutrals */
+  --color-ink: #0C0A1C;
+  --color-ink-muted: #6E6A85;
+  --color-ink-faint: #9A96AD;
+  --color-ink-disabled: #B8B4C9;
+  --color-mist: #F4F3F9;
+  --color-cloud: #FAF9FF;
+  --color-white: #FFFFFF;
+  /* status */
+  --color-success: #3BB273;
+  --color-warning: #E8A13C;
+  --color-amber: #FFA502; /* star ratings only */
+  --color-gold: #F5B940; /* rewards only */
+  --color-danger: #E4484D;
+
+  --spacing: 4px;
+  --spacing-gutter: 24px; /* space.screen */
+
+  --radius-*: initial;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-xxl: 28px;
+  --radius-dialog: 32px;
+  --radius-pill: 999px;
+
+  /* Figma drop shadows, tinted violetDeep (or violet for the CTA glow) so they never go grey. */
+  --shadow-*: initial;
+  --shadow-card: 0 8px 20px rgb(38 30 88 / 0.08);
+  --shadow-raised: 0 14px 28px rgb(38 30 88 / 0.14);
+  --shadow-violet: 0 10px 22px rgb(109 87 252 / 0.32);
+  --shadow-back: 0 2px 6px rgb(38 30 88 / 0.08);
+
+  /* Type scale: size / line height / letter spacing / weight. Pair display sizes with `font-display`. */
+  --text-*: initial;
+  --text-display: 44px;
+  --text-display--line-height: 54px;
+  --text-display--letter-spacing: -1.8px;
+  --text-display--font-weight: 700;
+  --text-hero: 34px;
+  --text-hero--line-height: 42px;
+  --text-hero--letter-spacing: -1px;
+  --text-hero--font-weight: 700;
+  --text-h1: 27px;
+  --text-h1--line-height: 34px;
+  --text-h1--letter-spacing: -0.5px;
+  --text-h1--font-weight: 700;
+  --text-h1-light: 27px;
+  --text-h1-light--line-height: 34px;
+  --text-h1-light--letter-spacing: -0.5px;
+  --text-h1-light--font-weight: 600;
+  --text-h2: 22px;
+  --text-h2--line-height: 28px;
+  --text-h2--letter-spacing: -0.3px;
+  --text-h2--font-weight: 700;
+  --text-h3: 19px;
+  --text-h3--line-height: 25px;
+  --text-h3--letter-spacing: -0.3px;
+  --text-h3--font-weight: 700;
+  --text-h4: 17px;
+  --text-h4--line-height: 23px;
+  --text-h4--letter-spacing: -0.2px;
+  --text-h4--font-weight: 700;
+  --text-h5: 16px;
+  --text-h5--line-height: 22px;
+  --text-h5--letter-spacing: -0.2px;
+  --text-h5--font-weight: 700;
+  --text-h6: 14.5px;
+  --text-h6--line-height: 19px;
+  --text-h6--letter-spacing: -0.2px;
+  --text-h6--font-weight: 700;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body--font-weight: 400;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 500;
+  --text-body-sb: 14px;
+  --text-body-sb--line-height: 20px;
+  --text-body-sb--font-weight: 600;
+  --text-small: 13px;
+  --text-small--line-height: 19px;
+  --text-small--font-weight: 400;
+  --text-small-md: 13px;
+  --text-small-md--line-height: 19px;
+  --text-small-md--font-weight: 500;
+  --text-small-sb: 13px;
+  --text-small-sb--line-height: 19px;
+  --text-small-sb--font-weight: 600;
+  --text-link: 12.5px;
+  --text-link--line-height: 17px;
+  --text-link--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 400;
+  --text-caption-md: 12px;
+  --text-caption-md--line-height: 16px;
+  --text-caption-md--font-weight: 500;
+  --text-caption-sb: 12px;
+  --text-caption-sb--line-height: 16px;
+  --text-caption-sb--font-weight: 600;
+  --text-pill: 11px; /* captionSb at 11/15, as the client's Pill sets it */
+  --text-pill--line-height: 15px;
+  --text-pill--font-weight: 600;
+  --text-micro: 11px;
+  --text-micro--line-height: 15px;
+  --text-micro--letter-spacing: 0.6px;
+  --text-micro--font-weight: 500;
+  --text-eyebrow: 10px;
+  --text-eyebrow--line-height: 13px;
+  --text-eyebrow--letter-spacing: 0.7px;
+  --text-eyebrow--font-weight: 600;
+
+  /* motion: fast 180 is the default transition; nothing runs longer than slow 380. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: var(--ease-out);
 }
 
+/* next/font sets these variables on <html>, so the font tokens reference them inline. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-*: initial;
+  --font-display: var(--font-urbanist), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* The header band's one soft violet glow (headerBand.glow: 340px disc at 150, -120; violet at 32%, 90px blur). */
+@utility band-glow {
+  position: absolute;
+  left: 150px;
+  top: -120px;
+  width: 340px;
+  height: 340px;
+  border-radius: var(--radius-pill);
+  background: var(--color-violet);
+  opacity: 0.32;
+  filter: blur(90px);
+  pointer-events: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cloud);
+  color: var(--color-ink);
+  font-family: var(--font-body);
 }
