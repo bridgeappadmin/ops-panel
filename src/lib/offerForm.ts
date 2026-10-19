@@ -1,10 +1,10 @@
-import type { Offer, OfferFundedBy } from './types';
+import type { CreateOfferInput, Offer, OfferFundedBy, OfferRequirement, RequirementMetric, RequirementPlatform, UpdateOfferInput } from './types';
 
 /** The offer form's state: strings as typed by the user. */
 export interface OfferFormValues {
   brandId: string; coords: string; address: string; discountInr: string; connectsCost: string; totalCoupons: string;
   fundedBy: OfferFundedBy; voucherValidityDays: string; startsAt: string; endsAt: string;
-  requirements: Array<{ platform: string; metric: string; min: string }>;
+  requirements: Array<{ platform: RequirementPlatform; metric: RequirementMetric; min: string }>;
   title: string; description: string; terms: string; deliverables: string;
 }
 
@@ -32,7 +32,7 @@ function isoOf(local: string, label: string) {
   if (!local || Number.isNaN(d.getTime())) throw new Error(`Enter the ${label} date`);
   return d.toISOString();
 }
-function requirementsOf(v: OfferFormValues) {
+function requirementsOf(v: OfferFormValues): OfferRequirement[] {
   if (v.requirements.some((r) => r.min.trim() === '')) throw new Error('Enter a minimum for each requirement');
   return v.requirements.map((r) => ({ platform: r.platform, metric: r.metric, min: Number(r.min) }));
 }
@@ -41,7 +41,7 @@ const texts = (v: OfferFormValues) => ({
 });
 
 /** The exact POST /admin/offers body (createValidator). Throws a message for what the form must catch itself. */
-export function toCreateBody(v: OfferFormValues): Record<string, unknown> {
+export function toCreateBody(v: OfferFormValues): CreateOfferInput {
   if (!v.brandId) throw new Error('Pick a venue');
   return {
     brandId: v.brandId, ...texts(v), ...coordsOf(v.coords), requirements: requirementsOf(v),
@@ -66,8 +66,8 @@ export function fromOffer(o: Offer): OfferFormValues {
 }
 
 /** Only the changed editable fields (UpdateOfferInput). Never brandId, startsAt, the money or the funder. */
-export function toPatchBody(original: Offer, v: OfferFormValues): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+export function toPatchBody(original: Offer, v: OfferFormValues): UpdateOfferInput {
+  const body: UpdateOfferInput = {};
   const t = texts(v);
   for (const k of Object.keys(t) as Array<keyof typeof t>) if (t[k] !== (original[k] ?? '')) body[k] = t[k];
   if (Number(v.voucherValidityDays) !== original.voucherValidityDays) body.voucherValidityDays = Number(v.voucherValidityDays);

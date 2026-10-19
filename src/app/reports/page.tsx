@@ -6,6 +6,7 @@ import { Button, Card, Field, Skeleton } from '@/components/ui';
 import { api, apiBlob } from '@/lib/api';
 import { saveBlob } from '@/lib/download';
 import { currentIstMonth, formatNumber } from '@/lib/format';
+import { fundedByLabel } from '@/lib/offers';
 import type { RedemptionReport } from '@/lib/types';
 
 export default function ReportsPage() {
@@ -69,7 +70,7 @@ function Report() {
                   <tr key={`${r.venueId}-${r.fundedBy}`} className="border-t border-line">
                     <td className="px-4 py-3">{r.venueName}</td>
                     <td className="px-4 py-3">{r.city}</td>
-                    <td className="px-4 py-3">{r.fundedBy === 'tazmify' ? 'Tazmify' : 'Brand'}</td>
+                    <td className="px-4 py-3">{fundedByLabel(r.fundedBy)}</td>
                     <td className="px-4 py-3">{formatNumber(r.vouchers)}</td>
                     <td className="px-4 py-3">{formatNumber(r.connects)}</td>
                     <td className="px-4 py-3">₹{formatNumber(r.valueInr)}</td>

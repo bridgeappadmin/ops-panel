@@ -14,11 +14,16 @@ const FALLBACK = 'Something went wrong';
 
 // The one fetch. Paths are the server's ('/admin/offers'); the browser sends them to '/api/...', which the Next.js
 // rewrite forwards to OPS_API_URL. A 401 clears the session, and AppShell, which watches it, routes to /login.
+// Signed out, nothing but the sign-in is sent: it fails as a 401 here, the same way.
 async function request(path: string, { method = 'GET', body }: Init = {}): Promise<Response> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const token = session.get()?.token;
   if (token) headers.Authorization = `Bearer ${token}`;
+  else if (path !== '/moderation/login') {
+    session.clear();
+    throw new ApiError('Please sign in', 401);
+  }
 
   let res: Response;
   try {

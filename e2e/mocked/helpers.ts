@@ -1,8 +1,9 @@
 import { test as base, expect, type Page, type Request } from '@playwright/test';
 import type { Session } from '../../src/lib/types';
 
-type Reply = { status?: number; json?: unknown; body?: string; contentType?: string };
-type Routes = Record<string, (req: Request) => Reply>;
+export type Reply = { status?: number; json?: unknown; body?: string; contentType?: string };
+// A handler may answer later (a Promise), to hold a request in flight.
+type Routes = Record<string, (req: Request) => Reply | Promise<Reply>>;
 
 const isApi = (url: URL) => url.pathname.startsWith('/api/');
 // 'GET /admin/budget' for GET /api/admin/budget?x=1: the query is left for the handler to check.
@@ -39,7 +40,7 @@ export async function mockApi(page: Page, routes: Routes): Promise<Request[]> {
     calls.push(req);
     const handler = routes[keyOf(req)];
     if (!handler) return route.fallback(); // to the catch-all, which fails the test
-    const { status = 200, json, body, contentType } = handler(req);
+    const { status = 200, json, body, contentType } = await handler(req);
     await route.fulfill({
       status,
       contentType: contentType ?? (json === undefined ? 'text/plain' : 'application/json'),

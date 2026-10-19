@@ -36,21 +36,25 @@ function Admins() {
     api<AdminListResponse>('/admin/admins').then((r) => setAdmins(r.admins), (e: Error) => setLoadError(e.message));
   }, []);
 
-  // Runs one change, then refetches the list; a refusal shows the server's message above the table.
-  async function act(run: () => Promise<unknown>, success?: string): Promise<boolean> {
+  // Runs one change, then refetches the list. Answers the server's refusal ('' when it went through), for the
+  // caller to show next to its control.
+  async function act(run: () => Promise<unknown>, success?: string): Promise<string> {
     setNotice(null);
     setBusy(true);
     try {
       await run();
       await load();
       if (success) setNotice({ tone: 'success', text: success });
-      return true;
+      return '';
     } catch (e) {
-      setNotice({ tone: 'error', text: (e as Error).message });
-      return false;
+      return (e as Error).message;
     } finally { setBusy(false); }
   }
-  const patch = (a: AdminAccount, body: UpdateAdminInput) => act(() => api(`/admin/admins/${a._id}`, { method: 'PATCH', body }));
+  // The row buttons' refusals show above the table.
+  const patch = async (a: AdminAccount, body: UpdateAdminInput) => {
+    const refused = await act(() => api(`/admin/admins/${a._id}`, { method: 'PATCH', body }));
+    if (refused) setNotice({ tone: 'error', text: refused });
+  };
 
   // An ops admin gets the server's 403 message and nothing else: no table, no form.
   if (loadError) return <p role="alert" className="text-danger">{loadError}</p>;
@@ -110,7 +114,8 @@ function Admins() {
   );
 }
 
-function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<boolean> }) {
+/** `onAdd` answers the server's refusal, shown above this form's button, or '' when the admin was added. */
+function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<string> }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AdminRole>('ops');
@@ -127,7 +132,9 @@ function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<boole
     setError('');
     sending.current = true;
     try {
-      if (await onAdd({ name: n, email: email.trim(), role, password })) { setName(''); setEmail(''); setRole('ops'); setPassword(''); }
+      const refused = await onAdd({ name: n, email: email.trim(), role, password });
+      if (refused) setError(refused);
+      else { setName(''); setEmail(''); setRole('ops'); setPassword(''); }
     } finally { sending.current = false; }
   }
 

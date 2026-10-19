@@ -7,7 +7,8 @@ import { VenueSearch } from '@/components/VenueSearch';
 import { Button, Card, Field } from '@/components/ui';
 import { api } from '@/lib/api';
 import { emptyValues, fromOffer, toCreateBody, toPatchBody, type OfferFormValues } from '@/lib/offerForm';
-import type { Offer, SavedOfferResponse, Venue } from '@/lib/types';
+import { fundedByLabel } from '@/lib/offers';
+import type { Offer, RequirementMetric, RequirementPlatform, SavedOfferResponse, Venue } from '@/lib/types';
 
 const PLATFORMS = [['instagram', 'Instagram'], ['youtube', 'YouTube']];
 const METRICS = [['followers', 'Followers'], ['engagementRate', 'Engagement %']];
@@ -83,7 +84,7 @@ export function OfferForm({ offer }: { offer?: Offer }) {
               {(['brand', 'tazmify'] as const).map((f) => (
                 <label key={f} className="flex items-center gap-2 text-body">
                   <input type="radio" name="fundedBy" checked={v.fundedBy === f} onChange={() => set('fundedBy', f)} className="accent-violet" />
-                  {f === 'brand' ? 'Brand' : 'Tazmify'}
+                  {fundedByLabel(f)}
                 </label>
               ))}
             </fieldset>
@@ -98,10 +99,10 @@ export function OfferForm({ offer }: { offer?: Offer }) {
         <div className="space-y-3">
           {v.requirements.map((r, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
-              <select aria-label={`Platform ${i + 1}`} className={selectCls} value={r.platform} onChange={(e) => setReq(i, { platform: e.target.value })}>
+              <select aria-label={`Platform ${i + 1}`} className={selectCls} value={r.platform} onChange={(e) => setReq(i, { platform: e.target.value as RequirementPlatform })}>
                 {PLATFORMS.map(([val, t]) => <option key={val} value={val}>{t}</option>)}
               </select>
-              <select aria-label={`Metric ${i + 1}`} className={selectCls} value={r.metric} onChange={(e) => setReq(i, { metric: e.target.value })}>
+              <select aria-label={`Metric ${i + 1}`} className={selectCls} value={r.metric} onChange={(e) => setReq(i, { metric: e.target.value as RequirementMetric })}>
                 {METRICS.map(([val, t]) => <option key={val} value={val}>{t}</option>)}
               </select>
               <Field aria-label={`Minimum ${i + 1}`} type="number" min={0} step="any" placeholder="Minimum" value={r.min} onChange={(e) => setReq(i, { min: e.target.value })} />

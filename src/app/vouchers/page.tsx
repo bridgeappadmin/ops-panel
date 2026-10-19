@@ -3,12 +3,13 @@
 import { useState, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { CancelRefund } from '@/components/CancelRefund';
-import { Button, Card, Field, Pill, type PillTone } from '@/components/ui';
+import { VoucherStatusPill } from '@/components/VoucherStatusPill';
+import { Button, Card, Field } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
-import type { AdminVoucher, VoucherResponse, VoucherStatus } from '@/lib/types';
+import { fundedByLabel } from '@/lib/offers';
+import type { AdminVoucher, VoucherResponse } from '@/lib/types';
 
-const TONE: Record<VoucherStatus, PillTone> = { active: 'success', redeemed: 'violet', expired: 'neutral', cancelled: 'danger' };
 type Notice = { tone: 'error' | 'success'; text: string };
 type Row = [string, string];
 
@@ -48,7 +49,7 @@ function Lookup() {
   const v = voucher;
   const details: Row[] = v ? [
     ['Number', v.number], ['Offer', v.offerTitle], ['Venue', v.venueName],
-    ['Connects', formatNumber(v.connectsCost)], ['Discount', `₹${formatNumber(v.discountInr)}`], ['Funded by', v.fundedBy],
+    ['Connects', formatNumber(v.connectsCost)], ['Discount', `₹${formatNumber(v.discountInr)}`], ['Funded by', fundedByLabel(v.fundedBy)],
     ['Creator', v.creator.name ? `${v.creator.name}${v.creator.username ? ` @${v.creator.username}` : ''}` : '—'],
     ['Created', formatIstDateTime(v.createdAt)], ['Expires', formatIstDateTime(v.expiresAt)],
     ...(v.redeemedAt ? [['Redeemed', formatIstDateTime(v.redeemedAt)] as Row] : []),
@@ -64,16 +65,16 @@ function Lookup() {
         </form>
         {error ? <p role="alert" className="mt-3 text-danger">{error}</p> : null}
       </Card>
-      {notice ? <p role="status" className={notice.tone === 'success' ? 'text-success' : 'text-danger'}>{notice.text}</p> : null}
+      {notice ? <p role={notice.tone === 'error' ? 'alert' : 'status'} className={notice.tone === 'success' ? 'text-success' : 'text-danger'}>{notice.text}</p> : null}
       {v ? (
         <section aria-label="Voucher details">
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <Pill label={v.status} tone={TONE[v.status]} />
+              <VoucherStatusPill status={v.status} />
               {v.status === 'active' || v.status === 'redeemed' ? (
                 <CancelRefund
                   voucher={v}
-                  onDone={(text) => { setNotice({ tone: text.startsWith('Voucher cancelled and') ? 'success' : 'error', text }); void lookup(v.number); }}
+                  onDone={(text, ok) => { setNotice({ tone: ok ? 'success' : 'error', text }); void lookup(v.number); }}
                 />
               ) : null}
             </div>

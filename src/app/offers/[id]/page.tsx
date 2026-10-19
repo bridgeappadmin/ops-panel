@@ -7,16 +7,22 @@ import { AppShell } from '@/components/AppShell';
 import { CancelRefund } from '@/components/CancelRefund';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { OfferStatusPill } from '@/components/OfferStatusPill';
-import { Button, Card, Field, Pill, Skeleton, type PillTone } from '@/components/ui';
+import { VoucherStatusPill } from '@/components/VoucherStatusPill';
+import { Button, Card, Field, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
-import { session } from '@/lib/session';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
-import type { AdminVoucher, Offer, OfferResponse, OfferVouchersResponse, UpdateOfferInput, VoucherStatus } from '@/lib/types';
+import { fundedByLabel } from '@/lib/offers';
+import type { AdminVoucher, Offer, OfferResponse, OfferVouchersResponse, UpdateOfferInput } from '@/lib/types';
 
-const VOUCHER_TONE: Record<VoucherStatus, PillTone> = { active: 'success', redeemed: 'violet', expired: 'neutral', cancelled: 'danger' };
 type Notice = { tone: 'error' | 'success'; text: string };
 
+// The shell's title is the offer's, which only the details (inside the shell, so signed in) load: they hand it up.
 export default function OfferPage() {
+  const [title, setTitle] = useState('Offer');
+  return <AppShell title={title}><OfferDetails onTitle={setTitle} /></AppShell>;
+}
+
+function OfferDetails({ onTitle }: { onTitle: (title: string) => void }) {
   const { id } = useParams<{ id: string }>();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [vouchers, setVouchers] = useState<AdminVoucher[] | null>(null);
@@ -27,23 +33,19 @@ export default function OfferPage() {
   const [countError, setCountError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const loadOffer = useCallback(async () => {
-    try {
-      setOffer((await api<OfferResponse>(`/admin/offers/${id}`)).offer);
-      setLoadError('');
-    } catch (e) { setLoadError((e as Error).message); }
-  }, [id]);
-  const loadVouchers = useCallback(async () => {
-    try {
-      setVouchers((await api<OfferVouchersResponse>(`/admin/offers/${id}/vouchers`)).vouchers);
-    } catch (e) { setNotice({ tone: 'error', text: (e as Error).message }); }
-  }, [id]);
-  // Not inside AppShell's gated children, so skip the calls when signed out (the shell is sending you to /login).
+  // State is set only in the callbacks, so the mount effect below can call these.
+  const loadOffer = useCallback(() => api<OfferResponse>(`/admin/offers/${id}`).then(
+    ({ offer: loaded }) => { setOffer(loaded); onTitle(loaded.title); setLoadError(''); },
+    (e: Error) => setLoadError(e.message),
+  ), [id, onTitle]);
+  const loadVouchers = useCallback(() => api<OfferVouchersResponse>(`/admin/offers/${id}/vouchers`).then(
+    (r) => setVouchers(r.vouchers),
+    (e: Error) => setNotice({ tone: 'error', text: e.message }),
+  ), [id]);
   useEffect(() => {
-    if (!session.get()) return;
-    api<OfferResponse>(`/admin/offers/${id}`).then((r) => setOffer(r.offer), (e: Error) => setLoadError(e.message));
-    api<OfferVouchersResponse>(`/admin/offers/${id}/vouchers`).then((r) => setVouchers(r.vouchers), (e: Error) => setNotice({ tone: 'error', text: e.message }));
-  }, [id]);
+    void loadOffer();
+    void loadVouchers();
+  }, [loadOffer, loadVouchers]);
 
   // The PATCH answers without `venue`, so refetch the offer instead of reading its response.
   async function patch(body: UpdateOfferInput): Promise<boolean> {
@@ -59,20 +61,20 @@ export default function OfferPage() {
     } finally { setBusy(false); }
   }
 
+  const closeDialog = () => { setDialog(null); setCountError(''); };
   async function confirmEnd() {
     await patch({ status: 'ended' });
-    setDialog(null);
+    closeDialog();
   }
   async function confirmAdd() {
     const n = Number(count);
     if (count.trim() === '' || !Number.isInteger(n) || n < 1 || n > 10000) { setCountError('Enter a whole number from 1 to 10,000.'); return; }
     if (await patch({ addCoupons: n })) setCount('');
-    setDialog(null);
+    closeDialog();
   }
-  const closeDialog = () => { setDialog(null); setCountError(''); };
 
-  if (loadError) return <AppShell title="Offer"><p role="alert" className="text-danger">{loadError}</p></AppShell>;
-  if (!offer) return <AppShell title="Offer"><Skeleton className="h-64 w-full" /></AppShell>;
+  if (loadError) return <p role="alert" className="text-danger">{loadError}</p>;
+  if (!offer) return <Skeleton className="h-64 w-full" />;
 
   const ended = offer.status === 'ended';
   const details: [string, string][] = [
@@ -80,7 +82,7 @@ export default function OfferPage() {
     ['Coupons', `${formatNumber(offer.remainingCoupons)} left of ${formatNumber(offer.totalCoupons)}`],
     ['Discount', `₹${formatNumber(offer.discountInr)}`],
     ['Cost', `${formatNumber(offer.connectsCost)} Connects`],
-    ['Funded by', offer.fundedBy],
+    ['Funded by', fundedByLabel(offer.fundedBy)],
     ['Voucher validity', `${offer.voucherValidityDays} days`],
     ['Dates', `${formatIstDateTime(offer.startsAt)} to ${formatIstDateTime(offer.endsAt)}`],
     ['Address', offer.address],
@@ -91,7 +93,7 @@ export default function OfferPage() {
   ];
 
   return (
-    <AppShell title={offer.title}>
+    <>
       <div className="space-y-5">
         <Link href="/offers" className="text-small-sb text-violet hover:underline">All offers</Link>
         <Card>
@@ -142,15 +144,16 @@ export default function OfferPage() {
                     <tr key={v._id} className="border-t border-line align-middle">
                       <td className="px-4 py-3 font-mono">{v.number}</td>
                       <td className="px-4 py-3">{v.creator.name || '—'}{v.creator.username ? ` @${v.creator.username}` : ''}</td>
-                      <td className="px-4 py-3"><Pill label={v.status} tone={VOUCHER_TONE[v.status]} /></td>
+                      <td className="px-4 py-3"><VoucherStatusPill status={v.status} /></td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(v.createdAt)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(v.expiresAt)}</td>
                       <td className="px-4 py-3 whitespace-nowrap">{v.redeemedAt ? formatIstDateTime(v.redeemedAt) : '—'}</td>
                       <td className="px-4 py-3">
                         {v.status === 'active' || v.status === 'redeemed' ? (
+                          // A cancel returns the coupon, so the offer's count changes too.
                           <CancelRefund
                             voucher={v}
-                            onDone={(text) => { setNotice({ tone: text.startsWith('Voucher cancelled and') ? 'success' : 'error', text }); void loadVouchers(); }}
+                            onDone={(text, ok) => { setNotice({ tone: ok ? 'success' : 'error', text }); void loadOffer(); void loadVouchers(); }}
                           />
                         ) : null}
                       </td>
@@ -169,6 +172,6 @@ export default function OfferPage() {
       <ConfirmDialog open={dialog === 'coupons'} title="Add coupons" confirmLabel="Add" loading={busy} onConfirm={() => void confirmAdd()} onClose={closeDialog}>
         <Field label="Coupons to add" type="number" inputMode="numeric" min={1} max={10000} value={count} onChange={(e) => setCount(e.target.value)} error={countError} hint="1 to 10,000" />
       </ConfirmDialog>
-    </AppShell>
+    </>
   );
 }

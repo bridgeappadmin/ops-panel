@@ -6,8 +6,8 @@ import { AppShell } from '@/components/AppShell';
 import { OfferStatusPill } from '@/components/OfferStatusPill';
 import { Card, Chip, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
-import { session } from '@/lib/session';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
+import { fundedByLabel } from '@/lib/offers';
 import type { Budget, OfferPage, OfferStatus } from '@/lib/types';
 
 const FILTERS: { label: string; status: '' | OfferStatus }[] = [
@@ -18,25 +18,6 @@ const FILTERS: { label: string; status: '' | OfferStatus }[] = [
 ];
 
 export default function OffersPage() {
-  const [status, setStatus] = useState<'' | OfferStatus>('');
-  const [budget, setBudget] = useState<Budget | null>(null);
-  const [offers, setOffers] = useState<OfferPage | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!session.get()) return; // signed out: the shell is sending you to /login
-    api<Budget>('/admin/budget').then(setBudget, (e: Error) => setError(e.message));
-  }, []);
-  useEffect(() => {
-    if (!session.get()) return;
-    let current = true;
-    api<OfferPage>(`/admin/offers${status ? `?status=${status}` : ''}`).then(
-      (page) => { if (current) { setOffers(page); setError(''); } },
-      (e: Error) => { if (current) setError(e.message); },
-    );
-    return () => { current = false; };
-  }, [status]);
-
   return (
     <AppShell
       title="Offers"
@@ -46,29 +27,56 @@ export default function OffersPage() {
         </Link>
       }
     >
-      <div className="space-y-5">
-        <Card>
-          {budget ? (
-            <p className="text-body-md">
-              Tazmify-funded this month: {formatNumber(budget.usedConnects)} / {formatNumber(budget.capConnects)} Connects
-            </p>
-          ) : (
-            <Skeleton className="h-5 w-80" />
-          )}
-        </Card>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {FILTERS.map((f) => (
-            <Chip key={f.label} label={f.label} selected={status === f.status} onClick={() => { setOffers(null); setStatus(f.status); }} />
-          ))}
-        </div>
-        {error ? <p role="alert" className="text-danger">{error}</p> : null}
-        {offers === null ? (
-          !error && <Skeleton className="h-40 w-full" />
-        ) : offers.results.length === 0 ? (
-          <Card><p className="text-ink-muted">No offers yet.</p></Card>
+      <Offers />
+    </AppShell>
+  );
+}
+
+function Offers() {
+  const [status, setStatus] = useState<'' | OfferStatus>('');
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [budgetError, setBudgetError] = useState('');
+  const [offers, setOffers] = useState<OfferPage | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api<Budget>('/admin/budget').then(setBudget, (e: Error) => setBudgetError(e.message));
+  }, []);
+  useEffect(() => {
+    let current = true;
+    api<OfferPage>(`/admin/offers${status ? `?status=${status}` : ''}`).then(
+      (page) => { if (current) { setOffers(page); setError(''); } },
+      (e: Error) => { if (current) setError(e.message); },
+    );
+    return () => { current = false; };
+  }, [status]);
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        {budget ? (
+          <p className="text-body-md">
+            Tazmify-funded this month: {formatNumber(budget.usedConnects)} / {formatNumber(budget.capConnects)} Connects
+          </p>
+        ) : budgetError ? (
+          <p role="alert" className="text-danger">{budgetError}</p>
         ) : (
-          <Card padded={false}>
-            <div className="overflow-x-auto">
+          <Skeleton className="h-5 w-80" />
+        )}
+      </Card>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
+        {FILTERS.map((f) => (
+          <Chip key={f.label} label={f.label} selected={status === f.status} onClick={() => { setOffers(null); setStatus(f.status); }} />
+        ))}
+      </div>
+      {error ? <p role="alert" className="text-danger">{error}</p> : null}
+      {offers === null ? (
+        !error && <Skeleton className="h-40 w-full" />
+      ) : offers.results.length === 0 ? (
+        <Card><p className="text-ink-muted">No offers yet.</p></Card>
+      ) : (
+        <Card padded={false}>
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-body">
               <thead className="text-caption-sb text-ink-muted">
                 <tr>
@@ -89,16 +97,15 @@ export default function OffersPage() {
                     </td>
                     <td className="px-4 py-3"><OfferStatusPill offer={o} /></td>
                     <td className="px-4 py-3">{formatNumber(o.remainingCoupons)} / {formatNumber(o.totalCoupons)}</td>
-                    <td className="px-4 py-3">{o.fundedBy}</td>
+                    <td className="px-4 py-3">{fundedByLabel(o.fundedBy)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(o.startsAt)} to {formatIstDateTime(o.endsAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            </div>
-          </Card>
-        )}
-      </div>
-    </AppShell>
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }

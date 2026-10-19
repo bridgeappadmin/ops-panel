@@ -132,7 +132,7 @@ test('creates a Tazmify-funded offer', async ({ page }) => {
 
   await page.goto('/offers');
   const row = page.getByRole('row', { name: new RegExp(FIRST.title) });
-  await expect(row.getByRole('cell')).toHaveText(['Café XBengaluru', FIRST.title, 'active', '20 / 20', 'tazmify', new RegExp(`^${IST.source} to ${IST.source}$`)]);
+  await expect(row.getByRole('cell')).toHaveText(['Café XBengaluru', FIRST.title, 'active', '20 / 20', 'Tazmify', new RegExp(`^${IST.source} to ${IST.source}$`)]);
 });
 
 test('edits, pauses, resumes and adds coupons', async ({ page }) => {
@@ -223,6 +223,9 @@ test('cancel & refund from the offer page refunds the creator', async ({ page })
   await dialog.getByRole('button', { name: 'Confirm refund' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Voucher cancelled and refunded' })).toBeVisible();
   await expect(row.getByRole('cell').nth(2)).toHaveText('cancelled');
+  // The cancel returned the coupon (24 left before it), and the page refetched the offer.
+  await expect(page.getByText('25 left of 25')).toBeVisible();
+  expect(await getOffer(offerId)).toMatchObject({ totalCoupons: 25, remainingCoupons: 25 });
 
   expect(await balance()).toBe(before + 500);
   // One voucher per creator per offer, ever: a cancelled one still counts.
@@ -243,7 +246,7 @@ test('cancel & refund from voucher lookup', async ({ page }) => {
   await page.getByLabel('Voucher number').fill(number.toLowerCase());
   await page.getByRole('button', { name: 'Look up' }).click();
   const details = page.getByRole('region', { name: 'Voucher details' });
-  await expect(details.getByRole('definition')).toHaveText([number, SECOND.title, 'Café X', '300', '₹400', 'brand', 'Asha @asha', new RegExp(`^${IST.source}$`), new RegExp(`^${IST.source}$`)]);
+  await expect(details.getByRole('definition')).toHaveText([number, SECOND.title, 'Café X', '300', '₹400', 'Brand', 'Asha @asha', new RegExp(`^${IST.source}$`), new RegExp(`^${IST.source}$`)]);
   await expect(details.getByText('active', { exact: true })).toBeVisible();
 
   await details.getByRole('button', { name: 'Cancel & refund' }).click();

@@ -11,11 +11,11 @@ const DONE = 'Voucher cancelled and refunded';
 
 /**
  * "Cancel & refund" button + reason dialog (3-300 characters after trim). Posts /admin/vouchers/:id/cancel.
- * `onDone(message)` runs after success and after a 500 (the voucher IS cancelled then, only the refund is partial),
- * with the text to show: the caller refetches and shows it, since this row may disappear. A refused cancel (4xx)
- * keeps the dialog open with the server's message.
+ * `onDone(message, ok)` runs after success (`ok`) and after a 500 (not `ok`: the voucher IS cancelled then, only the
+ * refund is partial), with the text to show: the caller refetches and shows it, since this row may disappear. A
+ * refused cancel (4xx) keeps the dialog open with the server's message.
  */
-export function CancelRefund({ voucher, onDone }: { voucher: { _id: string; number: string }; onDone: (message: string) => void }) {
+export function CancelRefund({ voucher, onDone }: { voucher: { _id: string; number: string }; onDone: (message: string, ok: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -35,10 +35,10 @@ export function CancelRefund({ voucher, onDone }: { voucher: { _id: string; numb
       await api<VoucherResponse>(`/admin/vouchers/${voucher._id}/cancel`, { method: 'POST', body: { reason: text } satisfies CancelVoucherInput });
       close();
       setReason('');
-      onDone(DONE);
+      onDone(DONE, true);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong';
-      if (e instanceof ApiError && e.status === 500) { close(); onDone(message); } else setError(message);
+      if (e instanceof ApiError && e.status === 500) { close(); onDone(message, false); } else setError(message);
     } finally {
       sending.current = false;
       setBusy(false);

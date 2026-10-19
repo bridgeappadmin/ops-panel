@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { AdminVoucher, Offer } from '../../src/lib/types';
-import { expect, fail, mockApi, ok, signIn, test } from './helpers';
+import { expect, fail, mockApi, ok, signIn, test, type Reply } from './helpers';
 
 const FUTURE = '2099-01-01T12:00:00Z';
 const offer = (over: Partial<Offer> = {}): Offer => ({
@@ -28,6 +28,7 @@ test.describe('list', () => {
     const row = page.getByRole('row', { name: /Café X/ });
     await expect(row).toContainText('Bengaluru');
     await expect(row).toContainText('12 / 20');
+    await expect(row.getByRole('cell').nth(4)).toHaveText('Brand');
     await expect(row.getByRole('link', { name: 'Free coffee' })).toHaveAttribute('href', '/offers/o1');
     await expect(page.getByRole('link', { name: 'New offer' })).toHaveAttribute('href', '/offers/new');
   });
@@ -39,6 +40,16 @@ test.describe('list', () => {
     await expect(page.getByText('Free coffee')).toBeVisible();
     await page.getByRole('button', { name: 'Paused' }).click();
     await expect.poll(() => calls.some((r) => r.method() === 'GET' && r.url().includes('/admin/offers?status=paused'))).toBe(true);
+  });
+
+  test('keeps a failed budget call on screen', async ({ page }) => {
+    await mockApi(page, { 'GET /admin/budget': () => fail(500, 'Internal server error (rayId: AbC123)'), 'GET /admin/offers': () => list([offer()]) });
+    await signIn(page);
+    await page.goto('/offers');
+    await expect(page.getByText('Free coffee')).toBeVisible();
+    await page.getByRole('button', { name: 'Paused' }).click(); // a later list answer must not clear it
+    await expect(page.getByText('Free coffee')).toBeVisible();
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText('Internal server error (rayId: AbC123)');
   });
 
   test('shows an empty list plainly', async ({ page }) => {
@@ -126,6 +137,11 @@ test.describe('offer page', () => {
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(dialog).toBeHidden();
     expect(patches().map((r) => r.postDataJSON())).toEqual([{ addCoupons: 5 }]);
+    // Reopened, it starts clean: no error left from the refused "10001".
+    await page.getByRole('button', { name: 'Add coupons' }).click();
+    await expect(dialog.getByLabel('Coupons to add')).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog).toContainText('1 to 10,000');
   });
 
   test('shows why an action failed', async ({ page }) => {
@@ -165,11 +181,12 @@ test.describe('offer page', () => {
     await expect(page.getByRole('link', { name: 'Edit' })).toHaveAttribute('href', '/offers/o1/edit');
   });
 
-  // Mocks one active voucher; `reply` answers the cancel POST. After it, the voucher reads cancelled.
-  async function cancelSetup(page: Page, reply: () => ReturnType<typeof ok>) {
+  // Mocks one active voucher; `reply` answers the cancel POST. After it, the voucher reads cancelled and its coupon
+  // is back on the offer (12 left of 20 becomes 13).
+  async function cancelSetup(page: Page, reply: () => Reply | Promise<Reply>) {
     let cancelled = false;
     const calls = await mockApi(page, {
-      'GET /admin/offers/o1': () => ok({ offer: offer() }),
+      'GET /admin/offers/o1': () => ok({ offer: offer({ remainingCoupons: cancelled ? 13 : 12 }) }),
       'GET /admin/offers/o1/vouchers': () => ok({ vouchers: [voucher({ status: cancelled ? 'cancelled' : 'active' })] }),
       'POST /admin/vouchers/v1/cancel': () => { cancelled = true; return reply(); },
     });
@@ -179,20 +196,25 @@ test.describe('offer page', () => {
     return calls;
   }
 
-  test('cancels and refunds with a reason', async ({ page }) => {
+  test('cancels and refunds with a reason, then refetches the offer', async ({ page }) => {
     const calls = await cancelSetup(page, () => ok({ voucher: voucher({ status: 'cancelled' }) }));
     const dialog = page.getByRole('dialog');
     const posts = () => calls.filter((r) => r.method() === 'POST');
+    await expect(page.getByText('12 left of 20')).toBeVisible();
     await dialog.getByLabel('Reason').fill('ab');
     await dialog.getByRole('button', { name: 'Confirm refund' }).click();
     await expect(dialog.getByRole('alert')).toContainText('3-300 characters');
     expect(posts()).toHaveLength(0);
     await dialog.getByLabel('Reason').fill('  Venue did not give the discount  ');
     await dialog.getByRole('button', { name: 'Confirm refund' }).click();
-    await expect(page.getByText('Voucher cancelled and refunded')).toBeVisible();
+    await expect(page.getByRole('main').getByRole('status')).toHaveText('Voucher cancelled and refunded');
     await expect(page.getByRole('row', { name: /TVABCD2345/ })).toContainText('cancelled');
     await expect(page.getByRole('button', { name: 'Cancel & refund' })).toHaveCount(0);
     expect(posts().map((r) => r.postDataJSON())).toEqual([{ reason: 'Venue did not give the discount' }]);
+    // The coupon came back: the offer is fetched again after the cancel, and its count moves.
+    await expect(page.getByText('13 left of 20')).toBeVisible();
+    const after = calls.slice(calls.indexOf(posts()[0]) + 1);
+    expect(after.some((r) => r.method() === 'GET' && r.url().endsWith('/api/admin/offers/o1'))).toBe(true);
   });
 
   test('refetches after a partial refund', async ({ page }) => {
@@ -200,16 +222,35 @@ test.describe('offer page', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Reason').fill('Venue did not give the discount');
     await dialog.getByRole('button', { name: 'Confirm refund' }).click();
-    await expect(page.getByText('Voucher cancelled but not fully refunded — see the server log')).toBeVisible();
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText('Voucher cancelled but not fully refunded — see the server log');
     await expect(page.getByRole('row', { name: /TVABCD2345/ })).toContainText('cancelled');
+    await expect(page.getByText('13 left of 20')).toBeVisible();
   });
 
   test('keeps the dialog open and shows a refused cancel', async ({ page }) => {
-    await cancelSetup(page, () => fail(400, 'Voucher is already cancelled'));
+    await cancelSetup(page, () => fail(400, "This voucher can't be cancelled"));
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Reason').fill('Venue did not give the discount');
     await dialog.getByRole('button', { name: 'Confirm refund' }).click();
-    await expect(dialog.getByRole('alert')).toContainText('Voucher is already cancelled');
+    await expect(dialog.getByRole('alert')).toContainText("This voucher can't be cancelled");
+  });
+
+  test('keeps the dialog open on Esc while the cancel is in flight', async ({ page }) => {
+    let answer = () => {};
+    const answered = new Promise<void>((resolve) => { answer = resolve; });
+    const calls = await cancelSetup(page, async () => { await answered; return fail(400, "This voucher can't be cancelled"); });
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Reason').fill('Venue did not give the discount');
+    await dialog.getByRole('button', { name: 'Confirm refund' }).click();
+    await expect.poll(() => calls.some((r) => r.method() === 'POST')).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    answer();
+    await expect(dialog.getByRole('alert')).toHaveText("This voucher can't be cancelled");
+    await expect(dialog).toBeVisible();
+    // Idle again, Esc closes it.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
   });
 
   test('cancels once on a double click', async ({ page }) => {

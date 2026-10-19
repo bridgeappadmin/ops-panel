@@ -41,6 +41,23 @@ test('adds an admin', async ({ page }) => {
   await expect(page.getByLabel('Temporary password')).toHaveValue('');
 });
 
+test('shows a refused add next to the form', async ({ page }) => {
+  await mockApi(page, {
+    'GET /admin/admins': () => ok({ admins: [acct()] }),
+    'POST /admin/admins': () => fail(400, 'An admin with this email already exists'),
+  });
+  await signIn(page);
+  await page.goto('/admins');
+  await page.getByLabel('Name').fill('Ravi Two');
+  await page.getByLabel('Email').fill('ravi@tazmify.com');
+  await page.getByLabel('Temporary password').fill('correct horse battery');
+  await page.getByRole('button', { name: 'Add admin' }).click();
+  // Above the form's button, not above the table: the page's only alert, inside the form.
+  await expect(page.locator('form').getByRole('alert')).toHaveText('An admin with this email already exists');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveCount(1);
+  await expect(page.getByLabel('Email')).toHaveValue('ravi@tazmify.com'); // kept, to fix and resend
+});
+
 test('disables and switches role', async ({ page }) => {
   let a = acct();
   const calls = await mockApi(page, {
@@ -87,7 +104,7 @@ test('resets a password in a masked field', async ({ page }) => {
 test('shows a refused reset inside the dialog', async ({ page }) => {
   await mockApi(page, {
     'GET /admin/admins': () => ok({ admins: [acct()] }),
-    'POST /admin/admins/a2/reset-password': () => fail(400, 'Admin not found'),
+    'POST /admin/admins/a2/reset-password': () => fail(404, 'Admin not found'),
   });
   await signIn(page);
   await page.goto('/admins');

@@ -98,14 +98,14 @@ test('limits requirements to four', async ({ page }) => {
 test('shows the server message above the button', async ({ page }) => {
   await mockApi(page, {
     'GET /admin/brands': () => ok({ brands: [venue] }),
-    'POST /admin/offers': () => fail(422, 'Title must be 3–120 characters'),
+    'POST /admin/offers': () => fail(422, 'Title must be 3-80 characters'),
   });
   await signIn(page);
   await page.goto('/offers/new');
   await fillCreate(page);
   const save = page.getByRole('button', { name: 'Create offer' });
   await save.click();
-  const message = page.getByText('Title must be 3–120 characters');
+  const message = page.getByText('Title must be 3-80 characters');
   await expect(message).toBeVisible();
   const [m, b] = [await message.boundingBox(), await save.boundingBox()];
   expect(m!.y + m!.height).toBeLessThanOrEqual(b!.y);
