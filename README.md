@@ -44,6 +44,20 @@ Playwright's `webServer` is global, so both projects (`test:unit` too) start `ne
 `OPS_API_URL=http://127.0.0.1:9` (nothing listens there). Each mocked spec answers `/api/*` with
 `mockApi()` from `e2e/mocked/helpers.ts`; a call a spec didn't mock fails the test.
 
+## Local stack (real server)
+
+`npm run stack:up` starts MongoDB 7 on `127.0.0.1:27017` and Redis 7 on `127.0.0.1:6380` (not 6379, which a
+developer's own Redis often holds) from `e2e/stack/docker-compose.yml`; `npm run stack:down` removes them and
+their data. `e2e/stack/server.env.e2e` is the server's env for that stack (all secrets fake), passed as process env,
+never as `server/.env`; `e2e/stack/env.ts` parses it for Playwright. With `server/` next to `ops/`, from Git Bash:
+
+```sh
+cd ../server
+set -a; . ../ops/e2e/stack/server.env.e2e; set +a
+npm run --silent e2e:seed   # drops tazmify_e2e, seeds admins, a venue and a creator, prints one line of JSON
+npm run dev                 # http://localhost:4010, after the seed (the seed's drop removes indexes built at boot)
+```
+
 ## Deployment
 
 `npm run build && npm start` serves the app; build with the production `OPS_API_URL` (see Setup).

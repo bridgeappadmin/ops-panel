@@ -1,0 +1,21 @@
+# Disposable MongoDB + Redis for the e2e run against the real server. No volumes: `stack:down` wipes everything.
+name: tazmify-e2e
+services:
+  mongo:
+    image: mongo:7
+    ports: ['127.0.0.1:27017:27017']
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7
+    # The server requires a non-empty REDIS_PASSWORD. Host port 6380, not 6379: a developer's own Redis often holds 6379.
+    command: ['redis-server', '--requirepass', 'e2e-redis-password']
+    ports: ['127.0.0.1:6380:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'e2e-redis-password', '--no-auth-warning', 'ping']
+      interval: 2s
+      timeout: 5s
+      retries: 30
