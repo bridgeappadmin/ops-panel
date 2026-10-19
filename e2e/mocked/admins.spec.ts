@@ -73,13 +73,30 @@ test('resets a password in a masked field', async ({ page }) => {
   await expect(field).toHaveAttribute('type', 'password');
   await field.fill('elevenchars');
   await dialog.getByRole('button', { name: 'Reset password' }).click();
-  await expect(dialog).toContainText('12-200 characters');
+  await expect(dialog.getByRole('alert')).toHaveText('Password must be 12-200 characters');
+  await expect(dialog).toBeVisible();
+  await page.waitForTimeout(500); // a POST, if one were sent, would have landed by now
   expect(bodies(calls, 'POST', '/reset-password')).toEqual([]);
-  await field.fill('twelve chars!');
+  await field.fill('twelve chars'); // exactly 12: accepted
   await dialog.getByRole('button', { name: 'Reset password' }).click();
   await expect(page.getByText('Password reset')).toBeVisible();
   await expect(dialog).toBeHidden();
-  expect(bodies(calls, 'POST', '/reset-password')).toEqual([{ password: 'twelve chars!' }]);
+  expect(bodies(calls, 'POST', '/reset-password')).toEqual([{ password: 'twelve chars' }]);
+});
+
+test('shows a refused reset inside the dialog', async ({ page }) => {
+  await mockApi(page, {
+    'GET /admin/admins': () => ok({ admins: [acct()] }),
+    'POST /admin/admins/a2/reset-password': () => fail(400, 'Admin not found'),
+  });
+  await signIn(page);
+  await page.goto('/admins');
+  await page.getByRole('row', { name: /Ravi/ }).getByRole('button', { name: 'Reset password' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('New password').fill('twelve chars');
+  await dialog.getByRole('button', { name: 'Reset password' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Admin not found');
+  await expect(dialog).toBeVisible();
 });
 
 test('shows the self-change refusal', async ({ page }) => {

@@ -97,8 +97,13 @@ function Admins() {
         admin={resetFor}
         onClose={() => setResetFor(null)}
         onReset={async (a, password) => {
-          const done = await act(() => api(`/admin/admins/${a._id}/reset-password`, { method: 'POST', body: { password } satisfies ResetPasswordInput }), 'Password reset');
-          if (done) setResetFor(null);
+          // A refusal goes back to the dialog (the page notice would sit behind the modal).
+          try {
+            await api(`/admin/admins/${a._id}/reset-password`, { method: 'POST', body: { password } satisfies ResetPasswordInput });
+          } catch (e) { return { ok: false, message: (e as Error).message }; }
+          setResetFor(null);
+          setNotice({ tone: 'success', text: 'Password reset' });
+          return { ok: true };
         }}
       /> : null}
     </div>
@@ -149,7 +154,7 @@ function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<boole
   );
 }
 
-function ResetPassword({ admin, onClose, onReset }: { admin: AdminAccount; onClose: () => void; onReset: (a: AdminAccount, password: string) => Promise<void> }) {
+function ResetPassword({ admin, onClose, onReset }: { admin: AdminAccount; onClose: () => void; onReset: (a: AdminAccount, password: string) => Promise<{ ok: true } | { ok: false; message: string }> }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -161,7 +166,11 @@ function ResetPassword({ admin, onClose, onReset }: { admin: AdminAccount; onClo
     if (!validPassword(password)) { setError(PASSWORD_ERROR); return; }
     sending.current = true;
     setBusy(true);
-    try { await onReset(admin, password); } finally { sending.current = false; setBusy(false); }
+    setError('');
+    try {
+      const res = await onReset(admin, password);
+      if (!res.ok) setError(res.message);
+    } finally { sending.current = false; setBusy(false); }
   }
 
   return (
