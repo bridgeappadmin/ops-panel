@@ -1,0 +1,2 @@
+# Sourced by sh (README): CRLF from core.autocrlf would end every value with a carriage return.
+e2e/stack/server.env.e2e text eol=lf
