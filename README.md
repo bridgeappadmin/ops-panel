@@ -49,7 +49,8 @@ Playwright's `webServer` is global, so both projects (`test:unit` too) start `ne
 
 `npm run stack:up` starts MongoDB 7 on `127.0.0.1:27017` and Redis 7 on `127.0.0.1:6380` (not 6379, which a
 developer's own Redis often holds) from `e2e/stack/docker-compose.yml`; `npm run stack:down` removes them and
-their data. `e2e/stack/server.env.e2e` is the server's env for that stack (all secrets fake), passed as process env,
+their data. `e2e/stack/server.env.e2e` is the server's env for that stack (all secrets fake, and every external
+service declared empty so a real `server/.env` can't switch one on), passed as process env,
 never as `server/.env`; `e2e/stack/env.ts` parses it for Playwright. With `server/` next to `ops/`, from Git Bash:
 
 ```sh
