@@ -32,7 +32,11 @@ test('signs in and lands on offers', async ({ page }) => {
 test('shows the server message on a bad password', async ({ page }) => {
   await mockApi(page, { 'POST /moderation/login': () => fail(401, 'Invalid moderator credentials') });
   await submitLogin(page);
-  await expect(page.getByText('Invalid moderator credentials')).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Invalid moderator credentials' })).toBeVisible();
+  // The message sits on the Password field, which takes the danger border (--color-danger #E4484D).
+  const password = page.getByLabel('Password');
+  await expect(password).toHaveAttribute('aria-invalid', 'true');
+  await expect(password).toHaveCSS('border-top-color', 'rgb(228, 72, 77)');
   await expect(page).toHaveURL('/login');
   expect(await storedToken(page)).toBeNull();
 });

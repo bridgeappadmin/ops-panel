@@ -43,8 +43,8 @@ export default function LoginPage() {
           <form onSubmit={submit} className="flex flex-col gap-4">
             <h2 className="font-display text-h3">Sign in</h2>
             <Field label="Email" type="email" required autoComplete="username" variant="filled" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Field label="Password" type="password" required autoComplete="current-password" variant="filled" value={password} onChange={(e) => setPassword(e.target.value)} />
-            {error ? <p role="alert" className="text-small-md text-danger">{error}</p> : null}
+            <Field label="Password" type="password" required autoComplete="current-password" variant="filled" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+
             <Button type="submit" size="lg" block loading={loading}>Sign in</Button>
           </form>
         </Card>

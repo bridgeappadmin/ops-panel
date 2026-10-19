@@ -34,15 +34,32 @@ a reload keeps you signed in, closing the tab signs you out.
 ```sh
 npm run lint
 npm run typecheck
-npm run test:unit    # Node-only specs in e2e/unit (no browser, no server)
+npm run test:unit    # specs in e2e/unit that import src/lib directly (no browser page)
 npm run test:mocked  # browser specs in e2e/mocked against `next dev`, every /api call mocked
 ```
 
 First time only: `npx playwright install chromium`.
 
-The mocked project starts `next dev` on port 3100 with `OPS_API_URL=http://127.0.0.1:9` (nothing listens there),
-and each spec answers `/api/*` with `mockApi()` from `e2e/mocked/helpers.ts`. A call a spec didn't mock fails the
-test.
+Playwright's `webServer` is global, so both projects (`test:unit` too) start `next dev` on port 3100 with
+`OPS_API_URL=http://127.0.0.1:9` (nothing listens there). Each mocked spec answers `/api/*` with
+`mockApi()` from `e2e/mocked/helpers.ts`; a call a spec didn't mock fails the test.
+
+## Deployment
+
+`npm run build && npm start` serves the app; build with the production `OPS_API_URL` (see Setup).
+
+**Put the Ops app behind a reverse proxy that appends the client's address to `X-Forwarded-For`.** Don't expose
+`next start` to clients directly. Vercel does this already; with nginx:
+
+```nginx
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+Why: the `/api` rewrite adds no `X-Forwarded-For` of its own and passes on whatever the client sent. The server
+runs with `trust proxy 1`, so it trusts one hop and takes the rightmost `X-Forwarded-For` entry as `req.ip`, and its
+admin sign-in rate limit (5 tries per 15 minutes) is keyed on `req.ip`. Without that proxy, every Ops user shares
+one rate-limit bucket (the Ops server's address), and a client can send its own `X-Forwarded-For` to get a fresh
+bucket on every try, defeating the brute-force protection.
 
 ## Layout
 
