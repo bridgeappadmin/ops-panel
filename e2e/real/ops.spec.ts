@@ -276,6 +276,35 @@ test('ends an offer', async ({ page }) => {
   await expect(page.getByRole('row', { name: new RegExp(FIRST.newTitle) })).toHaveCount(0);
 });
 
+test('edits requirements, coordinates and the end date', async ({ page }) => {
+  await asSuperadmin(page);
+  const before = await getOffer(offerId);
+  const ends = localInput(Date.now() + 14 * DAY);
+
+  await page.goto(`/offers/${offerId}/edit`);
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(FIRST.newTitle);
+  await page.getByLabel('Coordinates (lat, lng)').fill('12.9352, 77.6245');
+  await page.getByLabel('Ends', { exact: true }).fill(ends);
+  await page.getByLabel('Minimum 1').fill('5000');
+  await page.getByRole('button', { name: 'Add requirement' }).click();
+  await page.getByLabel('Platform 2').selectOption('youtube');
+  await page.getByLabel('Metric 2').selectOption('engagementRate');
+  await page.getByLabel('Minimum 2').fill('2.5');
+  const patch = page.waitForRequest((r) => r.method() === 'PATCH');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  const requirements = [{ platform: 'instagram', metric: 'followers', min: 5000 }, { platform: 'youtube', metric: 'engagementRate', min: 2.5 }];
+  const endsAt = new Date(ends).toISOString();
+  expect((await patch).postDataJSON()).toEqual({ endsAt, lat: 12.9352, lng: 77.6245, requirements });
+  await expect(page).toHaveURL(new RegExp(`/offers/${offerId}$`));
+  await expect(page.getByText('instagram followers at least 5,000; youtube engagement % at least 2.5')).toBeVisible();
+
+  // On the server, exactly those three moved (and updatedAt).
+  const after = await getOffer(offerId);
+  expect(after).toMatchObject({ endsAt, location: { type: 'Point', coordinates: [77.6245, 12.9352] }, requirements });
+  const rest = (o: object) => ({ ...o, endsAt: undefined, location: undefined, requirements: undefined, updatedAt: undefined });
+  expect(rest(after)).toEqual(rest(before));
+});
+
 test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await asSuperadmin(page);
   await page.goto('/admins');
@@ -325,4 +354,20 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await opsRow.getByRole('button', { name: 'Enable' }).click();
   await expect(opsRow.getByRole('cell').nth(3)).toHaveText('Active');
   await ops.context().close();
+});
+
+test("switches an admin's role", async ({ page }) => {
+  await asSuperadmin(page);
+  const roleOnServer = async () => ((await call('GET', '/admin/admins', superadmin.token)).body.data.admins as { email: string; role: string }[])
+    .find((a) => a.email === OPS2.email)?.role;
+  await page.goto('/admins');
+  const row = page.getByRole('row', { name: new RegExp(OPS2.name) });
+
+  for (const [button, role] of [['Make Superadmin', 'superadmin'], ['Make Ops', 'ops']]) {
+    const patch = page.waitForRequest((r) => r.method() === 'PATCH');
+    await row.getByRole('button', { name: button }).click();
+    expect((await patch).postDataJSON()).toEqual({ role });
+    await expect(row.getByRole('cell').nth(2)).toHaveText(role);
+    expect(await roleOnServer()).toBe(role);
+  }
 });
