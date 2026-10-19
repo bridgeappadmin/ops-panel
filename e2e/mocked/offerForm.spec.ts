@@ -42,14 +42,17 @@ test('searches venues after a pause', async ({ page }) => {
   await signIn(page);
   await page.goto('/offers/new');
   const search = page.getByLabel('Search venues');
-  await search.fill('c');
+  await search.pressSequentially('c');
   await page.waitForTimeout(600);
-  expect(calls).toHaveLength(0);
-  await search.pressSequentially('a');
+  expect(calls, 'one character is below the minimum').toHaveLength(0);
+  await search.pressSequentially('afe', { delay: 50 });
+  await page.waitForTimeout(150); // inside the 300 ms pause after the last keystroke
+  expect(calls, 'nothing is sent inside the pause').toHaveLength(0);
   await expect(page.getByRole('button', { name: /Café X/ })).toBeVisible();
+  await page.waitForTimeout(300); // room for any extra request
   const searches = calls.filter((r) => r.url().includes('/admin/brands'));
   expect(searches).toHaveLength(1);
-  expect(new URL(searches[0].url()).searchParams.get('q')).toBe('ca');
+  expect(new URL(searches[0].url()).searchParams.get('q')).toBe('cafe');
   const result = page.getByRole('button', { name: /Café X/ });
   await expect(result).toContainText('@cafex');
   await expect(result).toContainText('Bengaluru');
