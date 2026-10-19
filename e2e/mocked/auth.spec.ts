@@ -94,3 +94,11 @@ test('signs out', async ({ page }) => {
   await expect(page).toHaveURL('/login');
   expect(await page.evaluate(() => ['ops.token', 'ops.role', 'ops.name'].map((k) => sessionStorage.getItem(k)))).toEqual([null, null, null]);
 });
+
+test('forbids framing', async ({ page }) => {
+  for (const path of ['/login', '/offers']) {
+    const headers = (await page.goto(path))!.headers();
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(headers['content-security-policy']).toBe("frame-ancestors 'none'");
+  }
+});

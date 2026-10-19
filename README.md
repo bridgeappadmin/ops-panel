@@ -16,7 +16,8 @@ cp .env.example .env.local   # then point OPS_API_URL at the server
 | `OPS_API_URL` | `http://localhost:4010` | The Tazmify server's root URL (no `/v1`). The browser calls `/api/<path>` on this app, and a Next.js rewrite forwards it to `${OPS_API_URL}/<path>`. |
 
 `OPS_API_URL` is read when `next.config.ts` loads: by `npm run dev` at start-up, and by `npm run build` for
-production. **The built app keeps the value it was built with**, so set it before `npm run build` and rebuild to
+production. **The built app keeps the value it was built with**, so set it before `npm run build` (a build without it
+warns and uses `http://localhost:4010`; a trailing slash is dropped) and rebuild to
 change it. `npm start` does not re-read it.
 
 ## Run
