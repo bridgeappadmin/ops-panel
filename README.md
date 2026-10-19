@@ -58,6 +58,30 @@ npm run --silent e2e:seed   # drops tazmify_e2e, seeds admins, a venue and a cre
 npm run dev                 # http://localhost:4010, after the seed (the seed's drop removes indexes built at boot)
 ```
 
+### End-to-end tests against the real server
+
+```sh
+npm run test:e2e    # stack:up, then playwright test --project=e2e
+```
+
+One serial scenario in `e2e/real/ops.spec.ts` drives every page in Chromium. Creator and venue steps (claim,
+live code, check, confirm, Connects balance) call the server directly with the seeded tokens. Each run:
+
+1. seeds first (`e2e:seed` drops `tazmify_e2e`; its JSON goes to the git-ignored `e2e/real/.seed.json`), then
+   starts a fresh server on `127.0.0.1:4010` with `e2e/stack/server.env.e2e`;
+2. builds the app with `OPS_API_URL=http://127.0.0.1:4010` and serves it with `next start` on `127.0.0.1:3200`;
+3. `e2e/real/global-setup.ts` checks the server's `/health` and hands the seed to the spec.
+
+Notes:
+- Run the `e2e` project on its own. Playwright's `webServer` is global to a run, so `--project=e2e` starts the real
+  stack instead of the mocked project's `next dev`.
+- Ports 4010 and 3200 must be free; the run never reuses a running server.
+- The build writes `.next`. `next dev` keeps its output in `.next/dev`, so the mocked tests are unaffected, but
+  run `npm run build` again before `npm start` against another server.
+- Admin sign-in is limited to 5 per 15 minutes per server process. A run uses all 5, and the fresh server per run
+  resets the count. Every other page reuses the superadmin session.
+- The stack stays up afterwards; `npm run stack:down` removes it.
+
 ## Deployment
 
 `npm run build && npm start` serves the app; build with the production `OPS_API_URL` (see Setup).

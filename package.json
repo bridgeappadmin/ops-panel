@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:unit": "playwright test --project=unit",
     "test:mocked": "playwright test --project=mocked",
+    "test:e2e": "npm run stack:up && playwright test --project=e2e",
     "stack:up": "docker compose -f e2e/stack/docker-compose.yml up -d --wait",
     "stack:down": "docker compose -f e2e/stack/docker-compose.yml down"
   },
