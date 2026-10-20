@@ -64,7 +64,7 @@ test('refuses more than 5 hops', async () => {
   let n = 0;
   const impl = (async () => { n++; return redirect(`https://maps.app.goo.gl/h${n}`); }) as typeof fetch;
   await expect(resolveShortMapsLink('https://maps.app.goo.gl/h0', impl)).rejects.toThrow(/too many/i);
-  expect(n).toBeLessThanOrEqual(6);
+  expect(n).toBe(5);
 });
 
 test('fails on a non-redirect that is not a maps URL, without returning the body', async () => {
@@ -91,4 +91,24 @@ test('refuses a consent page that continues to another host', async () => {
   const f = fake({ 'https://maps.app.goo.gl/abc': () => redirect(consent) });
   await expect(resolveShortMapsLink('https://maps.app.goo.gl/abc', f.impl)).rejects.toThrow();
   expect(f.asked).toHaveLength(1);
+});
+
+test('refuses a hop to a non-default port before fetching it', async () => {
+  const f = fake({ 'https://maps.app.goo.gl/abc': () => redirect('https://www.google.com:22/x') });
+  await expect(resolveShortMapsLink('https://maps.app.goo.gl/abc', f.impl)).rejects.toThrow();
+  expect(f.asked).toHaveLength(1);
+});
+
+test('refuses lookalike TLDs', async () => {
+  for (const host of ['www.google.com.xyz', 'www.google.co.com', 'maps.google.top']) {
+    const f = fake({ 'https://maps.app.goo.gl/abc': () => redirect(`https://${host}/maps/x`) });
+    await expect(resolveShortMapsLink('https://maps.app.goo.gl/abc', f.impl), host).rejects.toThrow();
+    expect(f.asked).toHaveLength(1);
+  }
+});
+
+test('refuses a consent page as the start URL, without fetching it', async () => {
+  const f = fake({});
+  await expect(resolveShortMapsLink(`https://consent.google.com/m?continue=${encodeURIComponent(LONG)}`, f.impl)).rejects.toThrow();
+  expect(f.asked).toEqual([]);
 });

@@ -7,10 +7,12 @@ const SHORT_HOSTS = new Set(['maps.app.goo.gl', 'goo.gl']);
 export class MapsResolveError extends Error {}
 const refuse = (message: string) => new MapsResolveError(message);
 
-/** https on a Google host, nothing else (consent.google.com is only ever read for its `continue`, never fetched). */
+/** https, the default port, and a Google host. Nothing else is ever fetched. */
 function allowed(u: URL): boolean {
-  return u.protocol === 'https:' && (SHORT_HOSTS.has(u.hostname) || GOOGLE_HOST.test(u.hostname) || u.hostname === 'consent.google.com');
+  return u.protocol === 'https:' && u.port === '' && (SHORT_HOSTS.has(u.hostname) || GOOGLE_HOST.test(u.hostname));
 }
+/** The cookie-consent page is never fetched: only its `continue` parameter is read, from a redirect to it. */
+const isConsent = (u: URL) => u.protocol === 'https:' && u.port === '' && u.hostname === 'consent.google.com';
 
 /**
  * Expands a Google Maps short link by following its redirects by hand: https and a Google host on every hop,
@@ -39,11 +41,11 @@ export async function resolveShortMapsLink(url: string, fetchImpl: typeof fetch 
       if (!location) throw refuse('That link does not lead to a Google Maps place.');
       let next: URL;
       try { next = new URL(location, current); } catch { throw refuse('That link does not lead to a Google Maps place.'); }
-      if (next.hostname === 'consent.google.com') {
+      if (isConsent(next)) {
         // The cookie-consent page: its `continue` parameter is where we were going.
         try { next = new URL(next.searchParams.get('continue') ?? ''); } catch { throw refuse('That link does not lead to a Google Maps place.'); }
       }
-      if (!allowed(next) || next.hostname === 'consent.google.com') throw refuse('That link leads somewhere other than Google Maps.');
+      if (!allowed(next)) throw refuse('That link leads somewhere other than Google Maps.');
       current = next;
     }
   } finally {

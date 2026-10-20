@@ -55,3 +55,21 @@ test('isShortMapsLink', () => {
   expect(isShortMapsLink('https://www.google.com/maps/@12,77,15z')).toBe(false);
   expect(isShortMapsLink('nope')).toBe(false);
 });
+
+test('accepts google.com, country domains and rejects lookalike TLDs and ports', () => {
+  const at = (host: string) => parseMapsLink(`https://${host}/maps/@12.9,77.5,15z`);
+  for (const ok of ['www.google.co.in', 'google.com', 'www.google.com.au', 'www.google.de']) expect(at(ok), ok).not.toBeNull();
+  expect(parseMapsLink('https://maps.google.com/?q=12.9,77.5')).not.toBeNull();
+  for (const bad of ['www.google.com.xyz', 'www.google.co.com', 'www.google.com.net', 'www.google.com:22', 'google.com:8443']) expect(at(bad), bad).toBeNull();
+  expect(parseMapsLink('https://maps.google.top/?q=12.9,77.5')).toBeNull();
+  expect(parseMapsLink('https://maps.google.com:8080/?q=12.9,77.5')).toBeNull();
+});
+
+test('a degrees-minutes-seconds place segment is coordinates, not a name', () => {
+  const p = parseMapsLink(`https://www.google.com/maps/place/12%C2%B058'17.8%22N+77%C2%B035'40.6%22E/@12.97,77.59,17z`);
+  expect(p?.name).toBeUndefined();
+  expect(p?.exact).toBe(true);
+  expect(p!.lat).toBeCloseTo(12.971611, 5);
+  expect(p!.lng).toBeCloseTo(77.594611, 5);
+  expect(parseMapsLink(`https://www.google.com/maps/place/33%C2%B052'7.7%22S+151%C2%B012'33.5%22W`)).toMatchObject({ lat: expect.closeTo(-33.8688, 3), lng: expect.closeTo(-151.2093, 3) });
+});
