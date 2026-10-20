@@ -262,3 +262,20 @@ test.describe('offer page', () => {
     expect(calls.filter((r) => r.method() === 'POST')).toHaveLength(1);
   });
 });
+
+test.describe('scheduled', () => {
+  const future = offer({ startsAt: '2099-01-01T00:00:00Z', endsAt: '2099-02-01T00:00:00Z' });
+  test('the list says when a future offer starts', async ({ page }) => {
+    await mockApi(page, { 'GET /admin/budget': () => ok(budget), 'GET /admin/offers': () => list([future]) });
+    await signIn(page);
+    await page.goto('/offers');
+    await expect(page.getByRole('row', { name: /Café X/ })).toContainText('Scheduled · starts 1 Jan, 5:30 AM');
+  });
+
+  test('the offer page says when it starts', async ({ page }) => {
+    await mockApi(page, { 'GET /admin/offers/o1': () => ok({ offer: future }), 'GET /admin/offers/o1/vouchers': () => ok({ vouchers: [] }) });
+    await signIn(page);
+    await page.goto('/offers/o1');
+    await expect(page.getByText('Scheduled · starts 1 Jan, 5:30 AM')).toBeVisible();
+  });
+});

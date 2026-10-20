@@ -64,6 +64,7 @@ test('prefills coordinates from the venue', async ({ page }) => {
   await signIn(page);
   await page.goto('/offers/new');
   await pickVenue(page);
+  await page.getByRole('button', { name: 'Enter coordinates instead' }).click();
   await expect(page.getByLabel('Coordinates (lat, lng)')).toHaveValue('12.97, 77.59');
 });
 
@@ -144,4 +145,167 @@ test('edits only what changed', async ({ page }) => {
   expect(patches).toHaveLength(1);
   expect(patches[0].postDataJSON()).toEqual({ title: 'New title' });
   expect(fromOffer(offer).title).toBe('Free coffee');
+});
+
+const PLACE_URL = 'https://www.google.com/maps/place/Third+Wave+Coffee,+Indiranagar/@12.9784,77.6408,17z/data=!3m1!4b1!4m6!3m5!1s0x3bae1:0xabc!8m2!3d12.9783692!4d77.6408356!16s%2Fg%2F11abc?entry=ttu';
+const CENTRE_URL = 'https://www.google.com/maps/@12.9716,77.5946,15z';
+const SHORT_URL = 'https://maps.app.goo.gl/AbC123xyz';
+const iframeSrc = (page: Page) => page.getByTitle('Map preview').getAttribute('src');
+/** The Google iframe is answered locally, so no spec depends on the network. */
+async function mockGoogleFrame(page: Page) {
+  await page.route('https://maps.google.com/maps*', (r) => r.fulfill({ contentType: 'text/html', body: '<html><body>map</body></html>' }));
+}
+async function fillRestOfCreate(page: Page) {
+  await pickVenue(page);
+  await page.getByLabel('Title').fill(values.title);
+  await page.getByLabel('Description').fill(values.description);
+  await page.getByLabel('Terms and conditions').fill(values.terms);
+  await page.getByLabel('Discount (₹)').fill(values.discountInr);
+  await page.getByLabel('Cost (Connects)').fill(values.connectsCost);
+  await page.getByLabel('Coupons').fill(values.totalCoupons);
+  await page.getByLabel('Starts').fill(values.startsAt);
+  await page.getByLabel('Ends').fill(values.endsAt);
+}
+
+test.describe('Google Maps link', () => {
+  test('a full link fills coordinates, preview and an empty address, and the POST carries them', async ({ page }) => {
+    await mockGoogleFrame(page);
+    const calls = await mockApi(page, {
+      'GET /admin/brands': () => ok({ brands: [venue] }),
+      'POST /admin/offers': () => ok({ offer: { ...offer, _id: 'o9' } }),
+      ...offerPage,
+    });
+    await signIn(page);
+    await page.goto('/offers/new');
+    await fillRestOfCreate(page);
+    await page.getByLabel('Google Maps link').fill(PLACE_URL);
+    await expect(page.getByLabel('Address')).toHaveValue('Third Wave Coffee, Indiranagar');
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    expect(await iframeSrc(page)).toBe('https://maps.google.com/maps?q=12.9783692,77.6408356&z=16&output=embed');
+    const open = page.getByRole('link', { name: 'Open in Google Maps' });
+    await expect(open).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=12.9783692,77.6408356');
+    await expect(open).toHaveAttribute('target', '_blank');
+    await expect(open).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(page.getByText(/map's centre/)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Create offer' }).click();
+    await expect(page).toHaveURL('/offers/o9');
+    const post = calls.find((r) => r.method() === 'POST')!.postDataJSON();
+    expect(post).toMatchObject({ lat: 12.9783692, lng: 77.6408356, address: 'Third Wave Coffee, Indiranagar' });
+  });
+
+  test('pasting (not typing) a link works', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    const field = page.getByLabel('Google Maps link');
+    await field.focus();
+    await page.evaluate((text) => {
+      const el = document.activeElement as HTMLInputElement;
+      const dt = new DataTransfer();
+      dt.setData('text/plain', text);
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, PLACE_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+  });
+
+  test('a short link is expanded by /maps-link', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, {});
+    const asked: string[] = [];
+    await page.route('**/maps-link*', (r) => {
+      asked.push(new URL(r.request().url()).searchParams.get('url') ?? '');
+      return r.fulfill({ json: { url: PLACE_URL } });
+    });
+    await signIn(page);
+    await page.goto('/offers/new');
+    await page.getByLabel('Google Maps link').fill(SHORT_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    expect(asked.at(-1)).toBe(SHORT_URL);
+  });
+
+  test('a short link that cannot be resolved shows the route message', async ({ page }) => {
+    await mockApi(page, {});
+    await page.route('**/maps-link*', (r) => r.fulfill({ status: 400, json: { message: 'That link leads somewhere other than Google Maps.' } }));
+    await signIn(page);
+    await page.goto('/offers/new');
+    await page.getByLabel('Google Maps link').fill(SHORT_URL);
+    await expect(page.getByText('That link leads somewhere other than Google Maps.')).toBeVisible();
+  });
+
+  test('a link that is not a Google Maps place shows the hint', async ({ page }) => {
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    await page.getByLabel('Google Maps link').fill('https://example.com/not-maps');
+    await expect(page.getByText("This isn't a Google Maps place link. In Google Maps, open the café and use Share → Copy link.")).toBeVisible();
+    await expect(page.getByTitle('Map preview')).toHaveCount(0);
+  });
+
+  test('a centre-only link says so', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    await page.getByLabel('Google Maps link').fill(CENTRE_URL);
+    await expect(page.getByText(/map's centre, not a pinned place/)).toBeVisible();
+    await expect(page.getByText(/Share link/)).toBeVisible();
+  });
+
+  test('a typed address is not overwritten', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    await page.getByLabel('Address').fill('My own address');
+    await page.getByLabel('Google Maps link').fill(PLACE_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    await expect(page.getByLabel('Address')).toHaveValue('My own address');
+  });
+
+  test('"Enter coordinates instead" reveals the manual field', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    await expect(page.getByLabel('Coordinates (lat, lng)')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Enter coordinates instead' }).click();
+    await page.getByLabel('Coordinates (lat, lng)').fill('12.5, 77.5');
+    expect(await iframeSrc(page)).toBe('https://maps.google.com/maps?q=12.5,77.5&z=16&output=embed');
+  });
+
+  test('a venue with a saved location shows the preview', async ({ page }) => {
+    await mockGoogleFrame(page);
+    await mockApi(page, { 'GET /admin/brands': () => ok({ brands: [venue] }) });
+    await signIn(page);
+    await page.goto('/offers/new');
+    await pickVenue(page);
+    expect(await iframeSrc(page)).toBe('https://maps.google.com/maps?q=12.97,77.59&z=16&output=embed');
+  });
+
+  test('the edit page previews the offer and a new link sends lat and lng', async ({ page }) => {
+    await mockGoogleFrame(page);
+    const calls = await mockApi(page, {
+      'GET /admin/offers/o1': () => ok({ offer }),
+      'GET /admin/offers/o1/vouchers': () => ok({ vouchers: [] }),
+      'PATCH /admin/offers/o1': () => ok({ offer }),
+    });
+    await signIn(page);
+    await page.goto('/offers/o1/edit');
+    await expect.poll(() => iframeSrc(page)).toBe('https://maps.google.com/maps?q=12.97,77.59&z=16&output=embed');
+    await page.getByLabel('Google Maps link').fill(PLACE_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page).toHaveURL('/offers/o1');
+    const patch = calls.find((r) => r.method() === 'PATCH')!.postDataJSON();
+    expect(patch).toMatchObject({ lat: 12.9783692, lng: 77.6408356 });
+  });
+});
+
+test('pre-fills Starts with the current local time to the minute', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 10, 1, 10, 7, 45) });
+  await mockApi(page, {});
+  await signIn(page);
+  await page.goto('/offers/new');
+  await expect(page.getByLabel('Starts')).toHaveValue('2026-11-01T10:07');
 });

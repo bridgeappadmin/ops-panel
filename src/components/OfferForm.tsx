@@ -3,10 +3,12 @@
 import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { MapsLinkField } from '@/components/MapsLinkField';
 import { VenueSearch } from '@/components/VenueSearch';
 import { Button, Card, Field } from '@/components/ui';
 import { api } from '@/lib/api';
-import { emptyValues, fromOffer, toCreateBody, toPatchBody, type OfferFormValues } from '@/lib/offerForm';
+import type { MapsPlace } from '@/lib/mapsLink';
+import { emptyValues, fromOffer, nowLocalInput, toCreateBody, toPatchBody, type OfferFormValues } from '@/lib/offerForm';
 import { fundedByLabel } from '@/lib/offers';
 import type { Offer, RequirementMetric, RequirementPlatform, SavedOfferResponse, Venue } from '@/lib/types';
 
@@ -19,7 +21,8 @@ type AreaKey = 'description' | 'terms' | 'deliverables';
 /** Create (no `offer`) or edit. A create sends everything; an edit sends only what changed, and the venue is read-only. */
 export function OfferForm({ offer }: { offer?: Offer }) {
   const router = useRouter();
-  const [v, setV] = useState<OfferFormValues>(() => (offer ? fromOffer(offer) : emptyValues()));
+  const [v, setV] = useState<OfferFormValues>(() => (offer ? fromOffer(offer) : { ...emptyValues(), startsAt: nowLocalInput() }));
+  const [manual, setManual] = useState(false); // the typed-coordinates fallback
   const [venue, setVenue] = useState<Venue | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,6 +32,9 @@ export function OfferForm({ offer }: { offer?: Offer }) {
   const area = (k: AreaKey, label: string) => <Field area label={label} rows={3} value={v[k]} onChange={(e) => set(k, e.target.value)} />;
   const setReq = (i: number, patch: Partial<OfferFormValues['requirements'][number]>) =>
     set('requirements', v.requirements.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  /** A link gave the location: set the coordinates, and the address if nothing is typed there. */
+  const onPlace = (p: MapsPlace) => setV((prev) => ({ ...prev, coords: `${p.lat}, ${p.lng}`, address: prev.address.trim() ? prev.address : p.name ?? prev.address }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -70,7 +76,9 @@ export function OfferForm({ offer }: { offer?: Offer }) {
           {area('terms', 'Terms and conditions')}
           {area('deliverables', 'Deliverables')}
           {text('address', 'Address')}
-          {text('coords', 'Coordinates (lat, lng)', { placeholder: '12.9716, 77.5946' })}
+          <MapsLinkField coords={v.coords} onPlace={onPlace} />
+          <button type="button" aria-expanded={manual} className="text-caption-sb text-violet hover:underline" onClick={() => setManual((m) => !m)}>Enter coordinates instead</button>
+          {manual && text('coords', 'Coordinates (lat, lng)', { placeholder: '12.9716, 77.5946' })}
         </div>
       </Card>
       <Card>

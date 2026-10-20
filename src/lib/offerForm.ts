@@ -54,6 +54,9 @@ export function toCreateBody(v: OfferFormValues): CreateOfferInput {
 /** datetime-local wants the browser's local time, not UTC. */
 const toLocalInput = (iso: string) => new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
+/** The current local time to the minute, in datetime-local format. */
+export const nowLocalInput = (now: Date = new Date()) => toLocalInput(now.toISOString());
+
 export function fromOffer(o: Offer): OfferFormValues {
   return {
     brandId: o.brandId, coords: `${o.location.coordinates[1]}, ${o.location.coordinates[0]}`, address: o.address,
