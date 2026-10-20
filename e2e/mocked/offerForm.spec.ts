@@ -152,6 +152,7 @@ const CENTRE_URL = 'https://www.google.com/maps/@12.9716,77.5946,15z';
 const SHORT_URL = 'https://maps.app.goo.gl/AbC123xyz';
 const iframeSrc = (page: Page) => page.getByTitle('Map preview').getAttribute('src');
 /** The Google iframe is answered locally, so no spec depends on the network. */
+test.beforeEach(({ page }) => mockGoogleFrame(page)); // no mocked test touches Google
 async function mockGoogleFrame(page: Page) {
   await page.route('https://maps.google.com/maps*', (r) => r.fulfill({ contentType: 'text/html', body: '<html><body>map</body></html>' }));
 }
@@ -169,7 +170,6 @@ async function fillRestOfCreate(page: Page) {
 
 test.describe('Google Maps link', () => {
   test('a full link fills coordinates, preview and an empty address, and the POST carries them', async ({ page }) => {
-    await mockGoogleFrame(page);
     const calls = await mockApi(page, {
       'GET /admin/brands': () => ok({ brands: [venue] }),
       'POST /admin/offers': () => ok({ offer: { ...offer, _id: 'o9' } }),
@@ -194,7 +194,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('pasting (not typing) a link works', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, {});
     await signIn(page);
     await page.goto('/offers/new');
@@ -210,7 +209,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('a short link is expanded by /maps-link', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, {});
     const asked: string[] = [];
     await page.route('**/maps-link*', (r) => {
@@ -220,6 +218,8 @@ test.describe('Google Maps link', () => {
     await signIn(page);
     await page.goto('/offers/new');
     await page.getByLabel('Google Maps link').fill(SHORT_URL);
+    expect(asked, 'typing a short link does not resolve it').toEqual([]);
+    await page.getByLabel('Google Maps link').blur();
     await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
     expect(asked.at(-1)).toBe(SHORT_URL);
   });
@@ -230,7 +230,58 @@ test.describe('Google Maps link', () => {
     await signIn(page);
     await page.goto('/offers/new');
     await page.getByLabel('Google Maps link').fill(SHORT_URL);
+    await page.getByLabel('Google Maps link').blur();
     await expect(page.getByText('That link leads somewhere other than Google Maps.')).toBeVisible();
+  });
+
+  test('the same short link can be tried again after a failure', async ({ page }) => {
+    await mockApi(page, {});
+    let calls = 0;
+    await page.route('**/maps-link*', (r) => {
+      calls++;
+      return calls === 1 ? r.fulfill({ status: 400, json: { message: 'Google took too long to answer. Try again.' } }) : r.fulfill({ json: { url: PLACE_URL } });
+    });
+    await signIn(page);
+    await page.goto('/offers/new');
+    const field = page.getByLabel('Google Maps link');
+    await field.fill(SHORT_URL);
+    await field.blur();
+    await expect(page.getByText('Google took too long to answer. Try again.')).toBeVisible();
+    await field.focus();
+    await field.blur();
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    expect(calls).toBe(2);
+    await expect(page.getByText('Google took too long to answer. Try again.')).toHaveCount(0);
+  });
+
+  test('pasting the same link again restores its pin after a venue overwrote the coordinates', async ({ page }) => {
+    await mockApi(page, { 'GET /admin/brands': () => ok({ brands: [venue] }) });
+    await signIn(page);
+    await page.goto('/offers/new');
+    const field = page.getByLabel('Google Maps link');
+    await field.fill(PLACE_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    await pickVenue(page);
+    await expect.poll(() => iframeSrc(page)).toContain('q=12.97,77.59');
+    await field.focus();
+    await field.blur();
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    expect(await iframeSrc(page)).toContain('q=12.9783692,77.6408356');
+  });
+
+  test('a newer link updates an address the form filled in, but never a typed one', async ({ page }) => {
+    await mockApi(page, {});
+    await signIn(page);
+    await page.goto('/offers/new');
+    const field = page.getByLabel('Google Maps link');
+    await field.fill(PLACE_URL);
+    await expect(page.getByLabel('Address')).toHaveValue('Third Wave Coffee, Indiranagar');
+    await field.fill('https://www.google.com/maps/place/Blue+Tokai/@12.9,77.6,17z/data=!3d12.91!4d77.61');
+    await expect(page.getByLabel('Address')).toHaveValue('Blue Tokai');
+    await page.getByLabel('Address').fill('Blue Tokai, 2nd floor');
+    await field.fill(PLACE_URL);
+    await expect(page.getByText('12.9783692, 77.6408356')).toBeVisible();
+    await expect(page.getByLabel('Address')).toHaveValue('Blue Tokai, 2nd floor');
   });
 
   test('a link that is not a Google Maps place shows the hint', async ({ page }) => {
@@ -243,7 +294,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('a centre-only link says so', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, {});
     await signIn(page);
     await page.goto('/offers/new');
@@ -253,7 +303,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('a typed address is not overwritten', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, {});
     await signIn(page);
     await page.goto('/offers/new');
@@ -264,7 +313,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('"Enter coordinates instead" reveals the manual field', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, {});
     await signIn(page);
     await page.goto('/offers/new');
@@ -275,7 +323,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('a venue with a saved location shows the preview', async ({ page }) => {
-    await mockGoogleFrame(page);
     await mockApi(page, { 'GET /admin/brands': () => ok({ brands: [venue] }) });
     await signIn(page);
     await page.goto('/offers/new');
@@ -284,7 +331,6 @@ test.describe('Google Maps link', () => {
   });
 
   test('the edit page previews the offer and a new link sends lat and lng', async ({ page }) => {
-    await mockGoogleFrame(page);
     const calls = await mockApi(page, {
       'GET /admin/offers/o1': () => ok({ offer }),
       'GET /admin/offers/o1/vouchers': () => ok({ vouchers: [] }),
@@ -298,7 +344,7 @@ test.describe('Google Maps link', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page).toHaveURL('/offers/o1');
     const patch = calls.find((r) => r.method() === 'PATCH')!.postDataJSON();
-    expect(patch).toMatchObject({ lat: 12.9783692, lng: 77.6408356 });
+    expect(patch).toEqual({ lat: 12.9783692, lng: 77.6408356 });
   });
 });
 

@@ -16,34 +16,46 @@ export function MapsLinkField({ coords, onPlace }: { coords: string; onPlace: (p
   const [link, setLink] = useState('');
   const [place, setPlace] = useState<MapsPlace | null>(null);
   const [error, setError] = useState('');
-  const seen = useRef(''); // paste, change and blur all report the same text: read it once
+  const done = useRef<{ text: string; place: MapsPlace } | null>(null); // the link last applied
+  const pending = useRef(''); // a short link being resolved: paste and blur both report it
   const latest = useRef(0); // ignores an answer that a newer link has overtaken
 
-  async function read(raw: string) {
+  const at = parseCoords(coords);
+  const inForce = (text: string) => {
+    const d = done.current;
+    return !!d && d.text === text && !!at && at.lat === d.place.lat && at.lng === d.place.lng;
+  };
+
+  /** Short links go to the server, so only on paste or blur (`resolveShort`), never on every keystroke. */
+  async function read(raw: string, resolveShort: boolean) {
     const text = raw.trim();
-    if (text === seen.current) return;
-    seen.current = text;
+    if (inForce(text) || (text && pending.current === text)) return; // anything else, including a failed or overridden link, is read again
+    let found = parseMapsLink(text);
+    const short = !found && isShortMapsLink(text);
+    if (short && !resolveShort) return;
     const n = ++latest.current;
+    pending.current = '';
+    done.current = null;
     setError('');
     if (!text) { setPlace(null); return; }
-    let found = parseMapsLink(text);
-    if (!found && isShortMapsLink(text)) {
+    if (short) {
+      pending.current = text;
       try {
         const res = await fetch(`/maps-link?url=${encodeURIComponent(text)}`);
         const body = (await res.json().catch(() => ({}))) as { url?: string; message?: string };
         if (!res.ok || !body.url) throw new Error(body.message || 'Could not open that link.');
         found = parseMapsLink(body.url);
       } catch (e) {
-        if (n === latest.current) { setPlace(null); setError((e as Error).message); }
+        if (n === latest.current) { pending.current = ''; setPlace(null); setError((e as Error).message); }
         return;
       }
+      if (n === latest.current) pending.current = '';
     }
     if (n !== latest.current) return;
     setPlace(found);
-    if (found) onPlace(found); else setError(NOT_A_PLACE);
+    if (found) { done.current = { text, place: found }; onPlace(found); } else setError(NOT_A_PLACE);
   }
 
-  const at = parseCoords(coords);
   const fromLink = place && at && at.lat === place.lat && at.lng === place.lng ? place : null;
 
   return (
@@ -53,16 +65,16 @@ export function MapsLinkField({ coords, onPlace }: { coords: string; onPlace: (p
         placeholder="https://maps.app.goo.gl/…"
         value={link}
         error={error}
-        onChange={(e) => { setLink(e.target.value); void read(e.target.value); }}
-        onPaste={(e) => void read(e.clipboardData.getData('text'))}
-        onBlur={(e) => void read(e.target.value)}
+        onChange={(e) => { setLink(e.target.value); void read(e.target.value, false); }}
+        onPaste={(e) => void read(e.clipboardData.getData('text'), true)}
+        onBlur={(e) => void read(e.target.value, true)}
       />
       {at ? (
         <div className="space-y-2">
           {fromLink?.name ? <p className="text-body-sb">{fromLink.name}</p> : null}
           <p className="text-body text-ink-muted">{at.lat}, {at.lng}</p>
           {fromLink && !fromLink.exact ? (
-            <p className="text-caption text-warning">
+            <p className="rounded-md bg-warning/14 px-3 py-2 text-caption text-ink">
               This is the map&apos;s centre, not a pinned place. Use the place&apos;s own Share link for its exact location.
             </p>
           ) : null}

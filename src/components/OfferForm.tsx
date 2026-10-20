@@ -27,14 +27,19 @@ export function OfferForm({ offer }: { offer?: Offer }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
+  const autoAddress = useRef(''); // the address a link filled in, so a newer link may replace it
   const set = <K extends keyof OfferFormValues>(k: K, val: OfferFormValues[K]) => setV((p) => ({ ...p, [k]: val }));
   const text = (k: TextKey, label: string, extra = {}) => <Field label={label} value={v[k]} onChange={(e) => set(k, e.target.value)} {...extra} />;
   const area = (k: AreaKey, label: string) => <Field area label={label} rows={3} value={v[k]} onChange={(e) => set(k, e.target.value)} />;
   const setReq = (i: number, patch: Partial<OfferFormValues['requirements'][number]>) =>
     set('requirements', v.requirements.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
-  /** A link gave the location: set the coordinates, and the address if nothing is typed there. */
-  const onPlace = (p: MapsPlace) => setV((prev) => ({ ...prev, coords: `${p.lat}, ${p.lng}`, address: prev.address.trim() ? prev.address : p.name ?? prev.address }));
+  /** A link gave the location: set the coordinates, and the address unless the user typed one (a name we filled in may be replaced). */
+  const onPlace = (p: MapsPlace) => {
+    const filled = autoAddress.current; // read now: the updater runs later
+    setV((prev) => ({ ...prev, coords: `${p.lat}, ${p.lng}`, address: p.name && (!prev.address.trim() || prev.address === filled) ? p.name : prev.address }));
+    if (p.name) autoAddress.current = p.name;
+  };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
