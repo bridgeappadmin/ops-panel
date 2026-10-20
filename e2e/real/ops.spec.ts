@@ -73,12 +73,14 @@ const localInput = (ms: number) => new Date(ms - new Date(ms).getTimezoneOffset(
 const IST = /\d{1,2} [A-Z][a-z]{2}, \d{1,2}:\d{2} [AP]M/;
 const istMonth = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 7);
 
-/** Creates an offer at Café X through the form; it starts a minute ago, so creators can claim it at once. */
+/** Creates an offer at Café X through the form; it starts now (the form pre-fills Starts), so creators can claim it at once. */
 async function createOffer(page: Page, o: { title: string; discount: number; cost: number; coupons: number; funder: 'Tazmify' | 'Brand'; minFollowers?: number }) {
   await page.goto('/offers/new');
   await page.getByLabel('Search venues').fill('Caf');
   await page.getByRole('button', { name: /Café X/ }).click();
   await expect(page.getByText('Venue: Café X (@cafex) Bengaluru 919800000001')).toBeVisible();
+  await expect(page.getByTitle('Map preview')).toHaveAttribute('src', /q=12\.9716,77\.5946/);
+  await page.getByRole('button', { name: 'Enter coordinates instead' }).click();
   await expect(page.getByLabel('Coordinates (lat, lng)')).toHaveValue('12.9716, 77.5946');
   await page.getByLabel('Title', { exact: true }).fill(o.title);
   await page.getByLabel('Description', { exact: true }).fill(`${o.title} at Café X.`);
@@ -88,7 +90,7 @@ async function createOffer(page: Page, o: { title: string; discount: number; cos
   await page.getByLabel('Cost (Connects)').fill(String(o.cost));
   await page.getByLabel('Coupons', { exact: true }).fill(String(o.coupons));
   await page.getByRole('radio', { name: o.funder }).check();
-  await page.getByLabel('Starts', { exact: true }).fill(localInput(Date.now() - 60_000));
+  await expect(page.getByLabel('Starts', { exact: true })).toHaveValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/); // pre-filled with now, to the minute, so creators can claim at once
   await page.getByLabel('Ends', { exact: true }).fill(localInput(Date.now() + 7 * DAY));
   if (o.minFollowers !== undefined) {
     await page.getByRole('button', { name: 'Add requirement' }).click();
@@ -283,6 +285,7 @@ test('edits requirements, coordinates and the end date', async ({ page }) => {
 
   await page.goto(`/offers/${offerId}/edit`);
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue(FIRST.newTitle);
+  await page.getByRole('button', { name: 'Enter coordinates instead' }).click();
   await page.getByLabel('Coordinates (lat, lng)').fill('12.9352, 77.6245');
   await page.getByLabel('Ends', { exact: true }).fill(ends);
   await page.getByLabel('Minimum 1').fill('5000');
