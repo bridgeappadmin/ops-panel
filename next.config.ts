@@ -10,6 +10,8 @@ export default function config(phase: string): NextConfig {
     console.warn(`\n⚠ OPS_API_URL is not set: /api goes to ${apiUrl}. Set it before building for any other server.\n`);
   }
   return {
+    // The browser posts the sign-in straight to the API (see login() in lib/api.ts).
+    env: { NEXT_PUBLIC_API_URL: apiUrl },
     // next dev writes an AGENTS.md when it detects a coding agent; this repo doesn't keep one.
     agentRules: false,
     turbopack: {

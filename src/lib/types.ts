@@ -1,7 +1,7 @@
 // Request and response shapes of the server's Ops API, mirroring its views. Dates arrive as ISO strings.
 // `api()` returns the `data` of the `/admin/*` envelope, so these are the shapes inside it.
 
-export type AdminRole = 'ops' | 'superadmin';
+export type AdminRole = 'superadmin' | 'ops' | 'intern';
 export interface Session { token: string; role: AdminRole; name: string }
 
 // --- Offers: models/offer.model.ts, repository/offer.repository.ts, services/venue/offer.service.ts

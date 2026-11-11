@@ -1,7 +1,7 @@
 # Tazmify Ops
 
 The Ops web app: venue offers, the Tazmify-funded budget, voucher lookup and Cancel & refund, the monthly
-redemptions report, and admin accounts. Next.js (App Router) + Tailwind, client-rendered; it talks to the Tazmify
+redemptions report, and the team's accounts. Next.js (App Router) + Tailwind, client-rendered; it talks to the Tazmify
 server through a same-origin proxy.
 
 ## Setup
@@ -13,7 +13,7 @@ cp .env.example .env.local   # then point OPS_API_URL at the server
 
 | Variable | Example | Meaning |
 | --- | --- | --- |
-| `OPS_API_URL` | `http://localhost:4010` | The Tazmify server's root URL (no `/v1`). The browser calls `/api/<path>` on this app, and a Next.js rewrite forwards it to `${OPS_API_URL}/<path>`. |
+| `OPS_API_URL` | `http://localhost:4010` | The Tazmify server's root URL (no `/v1`). The browser calls `/api/<path>` on this app, and a Next.js rewrite forwards it to `${OPS_API_URL}/<path>`; sign-in alone goes straight to `${OPS_API_URL}/moderation/login` (see Deployment). |
 
 Production builds (`npm run build`) read `.env.production`, which is committed and points at `https://api.tazmify.com`. A
 `.env.local` overrides it, so delete or change `.env.local` before building for production.
@@ -30,7 +30,7 @@ npm run dev          # http://localhost:3000
 npm run build && npm start
 ```
 
-Sign in with an existing admin account (role `ops` or `superadmin`). The session lives in `sessionStorage`:
+Sign in with an existing staff account (Admin, Operations or Intern); each level sees its own menu and lands on its own page. The session lives in `sessionStorage`:
 a reload keeps you signed in, closing the tab signs you out.
 
 ## Checks
@@ -89,20 +89,20 @@ Notes:
 
 ## Deployment
 
-`npm run build && npm start` serves the app; build with the production `OPS_API_URL` (see Setup).
+The panel is a Netlify site (`netlify.toml`: `npm run build`, publish `.next`, Node 20; Netlify detects Next.js).
 
-**Put the Ops app behind a reverse proxy that appends the client's address to `X-Forwarded-For`.** Don't expose
-`next start` to clients directly. Vercel does this already; with nginx:
+1. New site from this repo, base directory `ops/`. Set `OPS_API_URL=https://api.tazmify.com` in the site's environment
+   (it is also committed in `.env.production`, which `npm run build` reads). It is baked in at build time, so change it
+   and redeploy.
+2. **Add the site's URL (the Netlify one, and any custom domain) to `CORS_ORIGINS` in the server's `.env` on the VPS**,
+   comma separated, then restart the server. Sign-in goes from the browser straight to
+   `${OPS_API_URL}/moderation/login` and is refused without it. Every other call stays on `/api/*`, which Netlify
+   forwards to `OPS_API_URL`.
 
-```nginx
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-```
-
-Why: the `/api` rewrite adds no `X-Forwarded-For` of its own and passes on whatever the client sent. The server
-runs with `trust proxy 1`, so it trusts one hop and takes the rightmost `X-Forwarded-For` entry as `req.ip`, and its
-admin sign-in rate limit (5 tries per 15 minutes) is keyed on `req.ip`. Without that proxy, every Ops user shares
-one rate-limit bucket (the Ops server's address), and a client can send its own `X-Forwarded-For` to get a fresh
-bucket on every try, defeating the brute-force protection.
+Why sign-in skips the `/api` rewrite: through a proxy the server sees the proxy's address, not the staff member's, so
+the sign-in rate limit (5 tries per 15 minutes per address) would be shared by everyone or evaded with a forged
+`X-Forwarded-For`. Called directly, `req.ip` is the browser's own address. A blocked address gets
+"Too many attempts, try again in 15 minutes".
 
 ## Layout
 

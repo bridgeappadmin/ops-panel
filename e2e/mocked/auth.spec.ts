@@ -10,23 +10,17 @@ async function submitLogin(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
-test('signs in and lands on offers', async ({ page }) => {
+test('signs in and lands on the dashboard', async ({ page }) => {
   const calls = await mockApi(page, {
     'POST /moderation/login': () => ({ json: { accessToken: 't', role: 'superadmin', name: 'Asha' } }),
-    'GET /admin/budget': budget,
-    'GET /admin/offers': offers,
   });
   await submitLogin(page);
-  await expect(page).toHaveURL('/offers');
+  await expect(page).toHaveURL('/dashboard');
   expect(await storedToken(page)).toBe('t');
-  await expect(page.getByRole('link', { name: 'Admins' })).toBeVisible();
-  await expect(page.getByText('Asha')).toBeVisible();
 
-  const login = calls.find((r) => r.url().endsWith('/api/moderation/login'))!;
+  const login = calls.find((r) => r.url().endsWith('/moderation/login'))!;
   expect(login.postDataJSON()).toEqual({ email: 'asha@tazmify.com', password: 'correct horse battery' });
-  // The offers page's calls carry the new token.
-  const after = calls.find((r) => r.url().includes('/api/admin/'))!;
-  expect(after.headers().authorization).toBe('Bearer t');
+  expect(login.url()).toBe('http://127.0.0.1:9/moderation/login'); // straight to the API, not /api
 });
 
 test('shows the server message on a bad password', async ({ page }) => {
@@ -55,9 +49,9 @@ test('sends signed-out visitors to sign in', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 });
 
-test('sends signed-in visitors on to offers', async ({ page }) => {
+test('sends signed-in visitors on to their landing', async ({ page }) => {
   await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers });
-  await signIn(page);
+  await signIn(page, { role: 'ops' });
   await page.goto('/login');
   await expect(page).toHaveURL('/offers');
 });
@@ -77,13 +71,21 @@ test('drops an expired session', async ({ page }) => {
   expect(calls.length).toBe(landed);
 });
 
-test('hides Admins for ops', async ({ page }) => {
+test('shows Team and the name to Admin', async ({ page }) => {
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers });
+  await signIn(page);
+  await page.goto('/offers');
+  await expect(page.getByText('Asha')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Team' })).toBeVisible();
+});
+
+test('hides Team for ops', async ({ page }) => {
   await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers });
   await signIn(page, { role: 'ops', name: 'Ravi' });
   await page.goto('/offers');
   await expect(page.getByText('Ravi')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Offers' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Admins' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Team' })).toHaveCount(0);
 });
 
 test('signs out', async ({ page }) => {

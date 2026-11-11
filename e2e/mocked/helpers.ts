@@ -5,9 +5,12 @@ export type Reply = { status?: number; json?: unknown; body?: string; contentTyp
 // A handler may answer later (a Promise), to hold a request in flight.
 type Routes = Record<string, (req: Request) => Reply | Promise<Reply>>;
 
-const isApi = (url: URL) => url.pathname.startsWith('/api/');
+// The app's own /api/* proxy, plus the direct sign-in to OPS_API_URL (http://127.0.0.1:9 in these runs).
+const isApi = (url: URL) => url.pathname.startsWith('/api/') || url.origin === 'http://127.0.0.1:9';
 // 'GET /admin/budget' for GET /api/admin/budget?x=1: the query is left for the handler to check.
 const keyOf = (req: Request) => `${req.method()} ${new URL(req.url()).pathname.replace(/^\/api/, '')}`;
+// The direct sign-in is cross-origin, so the browser preflights it and checks the reply's CORS headers.
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
 
 /**
  * The spec's `test`. Every page gets a catch-all /api route that answers 599 and records the call. After the test
@@ -20,8 +23,9 @@ export const test = base.extend<{ guard: void }>({
       const crashes: string[] = [];
       page.on('pageerror', (error) => crashes.push(error.message));
       await page.route(isApi, (route) => {
+        if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
         misses.push(keyOf(route.request()));
-        return route.fulfill({ status: 599, contentType: 'text/plain', body: `Not mocked: ${keyOf(route.request())}` });
+        return route.fulfill({ status: 599, headers: CORS, contentType: 'text/plain', body: `Not mocked: ${keyOf(route.request())}` });
       });
       await use();
       expect(misses, 'these /api calls had no mockApi() handler').toEqual([]);
@@ -37,12 +41,14 @@ export async function mockApi(page: Page, routes: Routes): Promise<Request[]> {
   const calls: Request[] = [];
   await page.route(isApi, async (route) => {
     const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     calls.push(req);
     const handler = routes[keyOf(req)];
     if (!handler) return route.fallback(); // to the catch-all, which fails the test
     const { status = 200, json, body, contentType } = await handler(req);
     await route.fulfill({
       status,
+      headers: CORS,
       contentType: contentType ?? (json === undefined ? 'text/plain' : 'application/json'),
       body: json === undefined ? body ?? '' : JSON.stringify(json),
     });

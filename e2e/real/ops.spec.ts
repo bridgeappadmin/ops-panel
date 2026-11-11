@@ -310,7 +310,7 @@ test('edits requirements, coordinates and the end date', async ({ page }) => {
 
 test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await asSuperadmin(page);
-  await page.goto('/admins');
+  await page.goto('/team');
   await page.getByLabel('Name', { exact: true }).fill(OPS2.name);
   await page.getByLabel('Email', { exact: true }).fill(OPS2.email);
   await page.getByLabel('Role').selectOption('ops');
@@ -327,7 +327,7 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await signIn(ops, OPS2.email, OPS2.password);
   await expect(ops).toHaveURL(/\/offers$/);
   await expect(ops.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveText(['Offers', 'Vouchers', 'Reports']);
-  await ops.goto('/admins');
+  await ops.goto('/team');
   await expect(ops.getByText('Not allowed for your role')).toBeVisible();
   await expect(ops.getByRole('table')).toHaveCount(0);
 
@@ -363,7 +363,7 @@ test("switches an admin's role", async ({ page }) => {
   await asSuperadmin(page);
   const roleOnServer = async () => ((await call('GET', '/admin/admins', superadmin.token)).body.data.admins as { email: string; role: string }[])
     .find((a) => a.email === OPS2.email)?.role;
-  await page.goto('/admins');
+  await page.goto('/team');
   const row = page.getByRole('row', { name: new RegExp(OPS2.name) });
 
   for (const [button, role] of [['Make Superadmin', 'superadmin'], ['Make Ops', 'ops']]) {

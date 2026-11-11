@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Card, Field, HeaderBand, LogoLockup } from '@/components/ui';
 import { login } from '@/lib/api';
+import { homeFor } from '@/lib/roles';
 import { session } from '@/lib/session';
 
 export default function LoginPage() {
@@ -14,7 +15,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (session.get()) router.replace('/offers');
+    const s = session.get();
+    if (s) router.replace(homeFor(s.role));
   }, [router]);
 
   async function submit(e: FormEvent) {
@@ -22,8 +24,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.replace('/offers');
+      router.replace(homeFor((await login(email, password)).role));
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);

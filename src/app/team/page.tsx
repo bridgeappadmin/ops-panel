@@ -5,22 +5,26 @@ import { AppShell } from '@/components/AppShell';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button, Card, Field, Pill, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
+import { ROLE_LABEL } from '@/lib/roles';
 import { formatIstDateTime } from '@/lib/format';
 import type { AdminAccount, AdminListResponse, AdminResponse, AdminRole, CreateAdminInput, ResetPasswordInput, UpdateAdminInput } from '@/lib/types';
 
 type Notice = { tone: 'error' | 'success'; text: string };
 const PASSWORD_ERROR = 'Password must be 12-200 characters';
+const LEVELS: AdminRole[] = ['superadmin', 'ops', 'intern'];
+const SELECT = 'h-13.5 w-full rounded-md border-[1.5px] border-line bg-white px-4 text-body-md text-ink outline-none focus:border-violet';
+const SELECT_SMALL = 'h-10 rounded-md border-[1.5px] border-line bg-white px-3 text-body text-ink outline-none focus:border-violet';
 const validPassword = (p: string) => p.length >= 12 && p.length <= 200;
 
-export default function AdminsPage() {
+export default function TeamPage() {
   return (
-    <AppShell title="Admins">
-      <Admins />
+    <AppShell title="Team">
+      <Team />
     </AppShell>
   );
 }
 
-function Admins() {
+function Team() {
   const [admins, setAdmins] = useState<AdminAccount[] | null>(null);
   const [loadError, setLoadError] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -56,7 +60,7 @@ function Admins() {
     if (refused) setNotice({ tone: 'error', text: refused });
   };
 
-  // An ops admin gets the server's 403 message and nothing else: no table, no form.
+  // A level without access gets the server's 403 message and nothing else: no table, no form.
   if (loadError) return <p role="alert" className="text-danger">{loadError}</p>;
   if (admins === null) return <Skeleton className="h-40 w-full" />;
 
@@ -68,7 +72,7 @@ function Admins() {
           <table className="w-full text-left text-body">
             <thead className="text-caption-sb text-ink-muted">
               <tr>
-                {['Name', 'Email', 'Role', 'Status', 'Created', 'Actions'].map((h) => (
+                {['Name', 'Email', 'Level', 'Status', 'Created', 'Actions'].map((h) => (
                   <th key={h} scope="col" className="px-4 py-3 font-semibold">{h}</th>
                 ))}
               </tr>
@@ -78,15 +82,16 @@ function Admins() {
                 <tr key={a._id} className="border-t border-line align-middle">
                   <td className="px-4 py-3">{a.name}</td>
                   <td className="px-4 py-3 break-all">{a.email}</td>
-                  <td className="px-4 py-3">{a.role}</td>
+                  <td className="px-4 py-3">
+                    <select aria-label={`Level for ${a.name}`} value={a.role} disabled={busy} onChange={(e) => patch(a, { role: e.target.value as AdminRole })} className={SELECT_SMALL}>
+                      {LEVELS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                    </select>
+                  </td>
                   <td className="px-4 py-3"><Pill label={a.disabled ? 'Disabled' : 'Active'} tone={a.disabled ? 'neutral' : 'success'} /></td>
                   <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(a.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => patch(a, { disabled: !a.disabled })}>{a.disabled ? 'Enable' : 'Disable'}</Button>
-                      <Button variant="secondary" size="sm" disabled={busy} onClick={() => patch(a, { role: a.role === 'ops' ? 'superadmin' : 'ops' })}>
-                        {a.role === 'ops' ? 'Make Superadmin' : 'Make Ops'}
-                      </Button>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => setResetFor(a)}>Reset password</Button>
                     </div>
                   </td>
@@ -145,10 +150,9 @@ function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<strin
         <Field label="Name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <div>
-          <label htmlFor="admin-role" className="mb-1.5 block text-caption-sb text-ink">Role</label>
-          <select id="admin-role" value={role} onChange={(e) => setRole(e.target.value as AdminRole)} className="h-13.5 w-full rounded-md border-[1.5px] border-line bg-white px-4 text-body-md text-ink outline-none focus:border-violet">
-            <option value="ops">Ops</option>
-            <option value="superadmin">Superadmin</option>
+          <label htmlFor="admin-role" className="mb-1.5 block text-caption-sb text-ink">Level</label>
+          <select id="admin-role" value={role} onChange={(e) => setRole(e.target.value as AdminRole)} className={SELECT}>
+            {LEVELS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
         </div>
         <Field label="Temporary password" type="password" autoComplete="new-password" value={password} maxLength={200} hint="12-200 characters" onChange={(e) => setPassword(e.target.value)} />
