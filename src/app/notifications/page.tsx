@@ -41,7 +41,7 @@ function Compose({ onSent }: { onSent: () => void }) {
   useEffect(() => {
     let stale = false;
     api<{ count: number }>(`/admin/broadcasts/audience?audience=${audience}`).then(
-      (r) => { if (!stale) setCount(r.count); },
+      (r) => { if (!stale) { setCount(r.count); setError(''); } }, // a count that works clears an earlier count's error
       (e: Error) => { if (!stale) setError(e.message); },
     );
     return () => { stale = true; };

@@ -46,6 +46,22 @@ test('creator page shows socials, balance, ledger and history', async ({ page })
   await expect(page.getByText('Meera')).toBeVisible();
 });
 
+test('a social profile link opens only for http(s), and history by a removed admin says "Former admin"', async ({ page }) => {
+  await mockApi(page, creatorRoutes(detail({
+    socials: [
+      { platform: 'instagram', username: 'asha_rao', profileLink: 'instagram.com/asha_rao', followers: 1, engagementRate: 1, tokenExpired: false },
+      { platform: 'youtube', username: 'asha_yt', profileLink: 'https://youtube.com/@asha_yt', followers: 1, engagementRate: 1, tokenExpired: false },
+    ],
+    history: [{ _id: 'h1', action: 'connects.adjust', createdAt: '2026-10-02T00:00:00Z', admin: null }],
+  })));
+  await signIn(page);
+  await page.goto('/creators/c1');
+  await expect(page.getByText('@asha_rao')).toBeVisible();
+  await expect(page.getByRole('link', { name: '@asha_rao' })).toHaveCount(0); // would be a relative panel link
+  await expect(page.getByRole('link', { name: '@asha_yt' })).toHaveAttribute('href', 'https://youtube.com/@asha_yt');
+  await expect(page.getByText(/^Former admin ·/)).toBeVisible();
+});
+
 test('admin adjusts Connects: the reason field is labeled "Shown to the creator", it posts { amount: -5, reason, note }, and the new balance shows', async ({ page }) => {
   let balance = 40;
   const calls = await mockApi(page, {

@@ -94,3 +94,17 @@ test('editing the title or changing the audience after an error posts a new clie
   expect(posts.map((p) => [p.audience, p.title])).toEqual([['everyone', 'One'], ['everyone', 'Two'], ['brands', 'Two']]);
   expect(new Set(posts.map((p) => p.clientKey)).size).toBe(3);
 });
+
+test('an audience count error clears once a later count works', async ({ page }) => {
+  await mockApi(page, {
+    ...hist,
+    'GET /admin/broadcasts/audience': (req) => (req.url().includes('audience=everyone') ? fail(500, 'Could not count the audience') : ok({ count: 7 })),
+  });
+  await signIn(page);
+  await page.goto('/notifications');
+  const error = page.getByRole('alert').filter({ hasText: 'Could not count the audience' }); // the closed confirm dialog holds a hidden copy
+  await expect(error).toBeVisible();
+  await page.getByLabel('Audience').selectOption('brands');
+  await expect(page.getByText('7 accounts', { exact: true })).toBeVisible();
+  await expect(error).toHaveCount(0);
+});

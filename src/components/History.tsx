@@ -13,7 +13,7 @@ export function History({ rows }: { rows: AdminActionView[] }) {
             <li key={r._id}>
               <p className="text-body-sb">{r.action}</p>
               {r.details ? <p className="text-body text-ink-muted">{r.details}</p> : null}
-              <p className="text-caption text-ink-muted">{r.admin?.name ?? 'Deleted account'} · {formatIstDateTime(r.createdAt)}</p>
+              <p className="text-caption text-ink-muted">{r.admin?.name ?? 'Former admin'} · {formatIstDateTime(r.createdAt)}</p>
             </li>
           ))}
         </ul>

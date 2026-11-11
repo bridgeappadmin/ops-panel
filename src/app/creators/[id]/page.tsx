@@ -64,7 +64,7 @@ function Creator() {
             {socials.map((s) => (
               <li key={`${s.platform}-${s.username}`} className="text-body">
                 <span className="text-body-sb capitalize">{s.platform}</span>{' '}
-                {s.username ? (s.profileLink ? <a href={s.profileLink} target="_blank" rel="noreferrer" className="text-violet hover:underline">@{s.username}</a> : `@${s.username}`) : null}
+                {s.username ? (s.profileLink && /^https?:\/\//.test(s.profileLink) ? <a href={s.profileLink} target="_blank" rel="noreferrer" className="text-violet hover:underline">@{s.username}</a> : `@${s.username}`) : null}
                 {' · '}{formatNumber(s.followers)} followers · {s.engagementRate}% engagement{s.tokenExpired ? ' · token expired' : ''}
               </li>
             ))}

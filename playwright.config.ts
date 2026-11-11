@@ -18,7 +18,8 @@ export default defineConfig({
     // Node-only: specs import src/lib modules directly; no page fixture, so no browser starts.
     { name: 'unit', testDir: 'e2e/unit' },
     // Browser specs against `next dev`; every /api call is answered by mockApi() in e2e/mocked/helpers.ts.
-    { name: 'mocked', testDir: 'e2e/mocked', use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT}` } },
+    // 10 s per expect: next dev compiles a page on its first visit, which can outlast the 5 s default under load.
+    { name: 'mocked', testDir: 'e2e/mocked', expect: { timeout: 10_000 }, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT}` } },
     // The built Ops app against the real server, MongoDB and Redis (e2e/stack). `npm run test:e2e`. ops.spec.ts runs
     // first, as e2e's dependency: admin.spec.ts ends by suspending the seeded creator, which signs its token out for good.
     ...(realStack ? [
