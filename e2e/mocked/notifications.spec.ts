@@ -66,3 +66,31 @@ test('history lists sender, audience, recipients and status', async ({ page }) =
   await expect(r).toContainText('42');
   await expect(r).toContainText('Sent');
 });
+
+test('editing the title or changing the audience after an error posts a new clientKey', async ({ page }) => {
+  const posts: { clientKey: string; audience: string; title: string }[] = [];
+  await mockApi(page, {
+    ...hist,
+    'GET /admin/broadcasts/audience': () => ok({ count: 3 }),
+    'POST /admin/broadcasts': (r) => { posts.push(r.postDataJSON() as never); return fail(500, 'Could not queue'); },
+  });
+  await signIn(page);
+  await page.goto('/notifications');
+  await page.getByLabel('Title').fill('One');
+  await page.getByLabel('Message').fill('Body');
+  const dialog = page.getByRole('dialog');
+  const attempt = async () => {
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Send' }).click();
+    await expect(dialog).toContainText('Could not queue');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  };
+  await attempt();
+  await page.getByLabel('Title').fill('Two');
+  await attempt();
+  await page.getByLabel('Audience').selectOption('brands');
+  await expect(page.getByText('3 accounts', { exact: true })).toBeVisible();
+  await attempt();
+  expect(posts.map((p) => [p.audience, p.title])).toEqual([['everyone', 'One'], ['everyone', 'Two'], ['brands', 'Two']]);
+  expect(new Set(posts.map((p) => p.clientKey)).size).toBe(3);
+});

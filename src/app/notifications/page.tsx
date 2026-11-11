@@ -35,7 +35,7 @@ function Compose({ onSent }: { onSent: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
-  // One key per form: made when the form opens, renewed only after a success, so a double click posts once and a retry reuses it.
+  // One key per message: made when the form opens, renewed after a success and whenever audience, title or body changes (a changed message must not be swallowed by an earlier request), so a double click posts once and a retry reuses it.
   const [clientKey, setClientKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
@@ -64,14 +64,14 @@ function Compose({ onSent }: { onSent: () => void }) {
       <div className="mt-4 grid gap-4">
         <div>
           <label htmlFor="audience" className="mb-1.5 block text-caption-sb text-ink">Audience</label>
-          <select id="audience" value={audience} onChange={(e) => { setCount(null); setAudience(e.target.value as BroadcastAudience); }}
+          <select id="audience" value={audience} onChange={(e) => { setCount(null); setClientKey(crypto.randomUUID()); setAudience(e.target.value as BroadcastAudience); }}
             className="h-13.5 w-full rounded-md border-[1.5px] border-line bg-white px-4 text-body-md text-ink outline-none focus:border-violet sm:w-80">
             {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
           <p className="mt-1.5 text-caption text-ink-muted">{count === null ? 'Counting…' : `${formatNumber(count)} accounts`}</p>
         </div>
-        <Field label="Title" value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
-        <Field area label="Message" value={body} maxLength={300} hint={`${body.length}/300`} onChange={(e) => setBody(e.target.value)} />
+        <Field label="Title" value={title} maxLength={100} onChange={(e) => { setClientKey(crypto.randomUUID()); setTitle(e.target.value); }} />
+        <Field area label="Message" value={body} maxLength={300} hint={`${body.length}/300`} onChange={(e) => { setClientKey(crypto.randomUUID()); setBody(e.target.value); }} />
         {error && !confirming ? <p role="alert" className="text-danger">{error}</p> : null}
         <div><Button disabled={!ready} onClick={() => { setError(''); setConfirming(true); }}>Send</Button></div>
       </div>
