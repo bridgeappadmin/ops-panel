@@ -11,13 +11,13 @@ export interface Filter { label: string; value: string }
 
 /**
  * A searchable, filterable, paged list of `GET {path}?q=&status=&page=`. The first column links to `rowHref(row)`.
- * `filters` are status chips ('' = no filter); the search waits 300 ms after the last keystroke.
+ * `filters` are status chips ('' = no filter), starting at `initialStatus`; the search waits 300 ms after the last keystroke.
  */
-export function ListPage<T extends { _id: string }>({ path, filters, columns, rowHref, searchLabel = 'Search', hideSearch = false }: {
-  path: string; filters: Filter[]; columns: Column<T>[]; rowHref: (row: T) => string; searchLabel?: string; hideSearch?: boolean;
+export function ListPage<T extends { _id: string }>({ path, filters, columns, rowHref, searchLabel = 'Search', hideSearch = false, initialStatus = '' }: {
+  path: string; filters: Filter[]; columns: Column<T>[]; rowHref: (row: T) => string; searchLabel?: string; hideSearch?: boolean; initialStatus?: string;
 }) {
   const [typed, setTyped] = useState('');
-  const [query, setQuery] = useState({ q: '', status: '', page: 1 });
+  const [query, setQuery] = useState({ q: '', status: initialStatus, page: 1 });
   const [data, setData] = useState<AccountPage<T> | null>(null);
   const [error, setError] = useState('');
 

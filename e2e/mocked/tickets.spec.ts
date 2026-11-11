@@ -8,16 +8,31 @@ const detail = (over: Partial<TicketDetail> = {}, status: TicketDetail['ticket']
   user: { _id: 'c1', role: 'creator', name: 'Asha Rao', email: 'asha@x.com', phoneNumber: '+911234567890' }, history: [], ...over,
 });
 
-test('oldest first, status chips', async ({ page }) => {
-  const calls = await mockApi(page, { 'GET /admin/tickets': () => list([row({ _id: 't1', subject: 'First one' }), row({ _id: 't2', subject: 'Second one', status: 'resolved' })]) });
+test('oldest open first, status chips', async ({ page }) => {
+  const calls = await mockApi(page, { 'GET /admin/tickets': () => list([row({ _id: 't1', subject: 'First one' }), row({ _id: 't2', subject: 'Second one', status: 'in_progress' })]) });
   await signIn(page, { role: 'intern' });
   await page.goto('/tickets');
+  await expect.poll(() => calls[0]?.url()).toContain('status=open&page=1'); // the landing view is the open queue
+  await expect(page.getByRole('button', { name: 'Open', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const rows = page.getByRole('row');
   await expect(rows.nth(1)).toContainText('First one');
   await expect(rows.nth(2)).toContainText('Second one');
   await expect(page.getByRole('link', { name: 'First one' })).toHaveAttribute('href', '/tickets/t1');
   await page.getByRole('button', { name: 'In progress' }).click();
   await expect.poll(() => calls.at(-1)?.url()).toContain('status=in_progress&page=1');
+});
+
+test('attachments link out in a new tab; anything but http(s) is plain text', async ({ page }) => {
+  await mockApi(page, { 'GET /admin/tickets/t1': () => ok(detail({ ticket: { ...detail().ticket, attachments: ['https://cdn.example.com/a.png', 'javascript:alert(1)'] } })) });
+  await signIn(page);
+  await page.goto('/tickets/t1');
+  const list = page.getByRole('list', { name: 'Attachments' });
+  const link = list.getByRole('link', { name: 'Attachment 1' });
+  await expect(link).toHaveAttribute('href', 'https://cdn.example.com/a.png');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(list.getByText('javascript:alert(1)')).toBeVisible();
+  await expect(list.getByRole('link')).toHaveCount(1);
 });
 
 test('changing status to resolved PATCHes { status: "resolved" }', async ({ page }) => {

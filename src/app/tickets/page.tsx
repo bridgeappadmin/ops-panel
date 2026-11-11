@@ -11,7 +11,7 @@ const FILTERS = [
   { label: 'Resolved', value: 'resolved' }, { label: 'Closed', value: 'closed' },
 ];
 
-/** Oldest first: the server sorts it. */
+/** Oldest open first: the server sorts oldest first, and the page opens on the Open filter. */
 export default function TicketsPage() {
   return (
     <AppShell title="Support">
@@ -19,6 +19,7 @@ export default function TicketsPage() {
         path="/admin/tickets"
         hideSearch
         filters={FILTERS}
+        initialStatus="open"
         rowHref={(r) => `/tickets/${r._id}`}
         columns={[
           { header: 'Subject', cell: (r) => r.subject },
