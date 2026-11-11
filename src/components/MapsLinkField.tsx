@@ -91,7 +91,7 @@ export function MapsLinkField({ coords, onPlace }: { coords: string; onPlace: (p
             href={`https://www.google.com/maps/search/?api=1&query=${at.lat},${at.lng}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-body-sb text-violet hover:underline"
+            className="text-body-sb text-violet-pressed hover:underline"
           >
             Open in Google Maps
           </a>

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SuspendDialog } from '@/components/SuspendDialog';
-import { Button, Card, Pill } from '@/components/ui';
+import { Avatar, Button, Card, Pill } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -18,7 +18,7 @@ export const ACCOUNT_FILTERS = [
 export const StatusPill = ({ status }: { status: AccountStatus }) => <Pill label={LABEL[status]} tone={TONE[status]} />;
 
 /**
- * An account's profile card with its suspension state. Only Admin (superadmin) gets the buttons, and never on a deleted
+ * An account's header card (the page's h1) with its suspension state. Only Admin (superadmin) gets the buttons, and never on a deleted
  * account. `extra` renders more buttons (Adjust Connects); `onChanged` reloads the page's data after a write.
  */
 export function AccountCard({ kind, profile, suspension, onChanged, extra }: {
@@ -50,25 +50,34 @@ export function AccountCard({ kind, profile, suspension, onChanged, extra }: {
     } catch (e) { setNotice({ tone: 'error', text: (e as Error).message }); } finally { setBusy(false); setDialog(null); }
   }
 
+  const meta = [profile.username && `@${profile.username}`, profile.email, profile.phoneNumber, profile.city].filter(Boolean) as string[];
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-h3">{profile.name ?? 'Unnamed'}</h2>
-          <p className="text-body text-ink-muted">{[profile.username && `@${profile.username}`, profile.email, profile.phoneNumber, profile.city].filter(Boolean).join(' · ')}</p>
-          <p className="text-caption text-ink-muted">Joined {formatIstDateTime(profile.createdAt)}</p>
+    <Card padded={false}>
+      <div className="flex flex-wrap items-center gap-5 p-6">
+        <Avatar name={profile.name ?? 'Unnamed'} src={profile.profilePicture} size={64} />
+        <div className="min-w-0 flex-1 basis-72">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="font-display text-h1">{profile.name ?? 'Unnamed'}</h1>
+            {profile.verified ? <Pill label="Verified" tone="violet" /> : null}
+            <StatusPill status={status} />
+          </div>
+          <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-small text-ink-muted">
+            {meta.map((m) => <span key={m} className="break-all">{m}</span>)}
+            <span>Joined {formatIstDateTime(profile.createdAt)}</span>
+          </p>
         </div>
-        <StatusPill status={status} />
+        {canAct ? (
+          <div className="flex flex-wrap gap-2">
+            {extra}
+            {suspension.admin ? <Button variant="secondary" size="sm" onClick={() => setDialog('unsuspend')}>Unsuspend</Button> : !suspension.reportId ? <Button variant="danger" size="sm" onClick={() => setDialog('suspend')}>Suspend</Button> : null}
+          </div>
+        ) : null}
       </div>
-      {suspension.admin ? (
-        <p className="mt-3 text-body">Suspended by {suspension.admin.by?.name ?? 'an admin'} on {formatIstDateTime(suspension.admin.at)}: {suspension.admin.reason}</p>
-      ) : null}
-      {suspension.reportId ? <p className="mt-3 text-body">Suspended by a user report — lift it from Moderation</p> : null}
-      {notice ? <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`mt-3 ${notice.tone === 'success' ? 'text-success' : 'text-danger'}`}>{notice.text}</p> : null}
-      {canAct ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {suspension.admin ? <Button variant="secondary" size="sm" onClick={() => setDialog('unsuspend')}>Unsuspend</Button> : !suspension.reportId ? <Button variant="danger" size="sm" onClick={() => setDialog('suspend')}>Suspend</Button> : null}
-          {extra}
+      {suspension.admin || suspension.reportId || notice ? (
+        <div className="space-y-1 border-t border-line bg-cloud px-6 py-3">
+          {suspension.admin ? <p>Suspended by {suspension.admin.by?.name ?? 'an admin'} on {formatIstDateTime(suspension.admin.at)}: {suspension.admin.reason}</p> : null}
+          {suspension.reportId ? <p>Suspended by a user report — lift it from Moderation</p> : null}
+          {notice ? <p role={notice.tone === 'error' ? 'alert' : 'status'} className={notice.tone === 'success' ? 'text-success-ink' : 'text-danger-ink'}>{notice.text}</p> : null}
         </div>
       ) : null}
       {dialog === 'suspend' ? <SuspendDialog kind={kind} onSubmit={suspend} onClose={() => setDialog(null)} /> : null}

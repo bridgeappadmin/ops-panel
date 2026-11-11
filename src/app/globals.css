@@ -14,7 +14,7 @@
   /* brand */
   --color-violet: #6D57FC;
   --color-violet-pressed: #5B47E8;
-  --color-violet-deep: #261E58; /* header bands; tint for every shadow */
+  --color-violet-deep: #261E58; /* tint for every shadow */
   --color-lavender: #C9BFFF;
   --color-lavender-mid: #B0A4FD;
   /* tints */
@@ -32,12 +32,29 @@
   --color-mist: #F4F3F9;
   --color-cloud: #FAF9FF;
   --color-white: #FFFFFF;
+  /* admin dashboard surfaces */
+  --color-page: #F6F5FB; /* behind every card */
+  --color-sidebar: #0F0C24;
+  --color-sidebar-text: #C4BFE0;
+  --color-sidebar-muted: #8C86B3;
   /* status */
   --color-success: #3BB273;
   --color-warning: #E8A13C;
   --color-amber: #FFA502; /* star ratings only */
   --color-gold: #F5B940; /* rewards only */
   --color-danger: #E4484D;
+  /* status text and fills that pass 4.5:1 together (the status colours above are for dots, bars and borders) */
+  --color-success-ink: #1F7A4C;
+  --color-success-tint: #E7F6EE;
+  --color-warning-ink: #8A5A12;
+  --color-warning-tint: #FDF1DF;
+  --color-danger-ink: #B3262C;
+  --color-danger-tint: #FDE8E9;
+  /* extra avatar tints */
+  --color-sky-ink: #1C5D99;
+  --color-sky-tint: #E6F0FB;
+  --color-rose-ink: #A3215E;
+  --color-rose-tint: #FCE8F1;
 
   --spacing: 4px;
   --spacing-gutter: 24px; /* space.screen */
@@ -155,22 +172,8 @@
   --font-body: var(--font-inter), sans-serif;
 }
 
-/* The header band's one soft violet glow (headerBand.glow: 340px disc at 150, -120; violet at 32%, 90px blur). */
-@utility band-glow {
-  position: absolute;
-  left: 150px;
-  top: -120px;
-  width: 340px;
-  height: 340px;
-  border-radius: var(--radius-pill);
-  background: var(--color-violet);
-  opacity: 0.32;
-  filter: blur(90px);
-  pointer-events: none;
-}
-
 body {
-  background: var(--color-cloud);
+  background: var(--color-page);
   color: var(--color-ink);
   font-family: var(--font-body);
 }

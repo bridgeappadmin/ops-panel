@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, Field, Pill, Skeleton } from '@/components/ui';
+import { Avatar, Button, Card, Field, Pill, Skeleton, Table, Td, Th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ROLE_LABEL } from '@/lib/roles';
 import { formatIstDateTime } from '@/lib/format';
@@ -12,13 +12,13 @@ import type { AdminAccount, AdminListResponse, AdminResponse, AdminRole, CreateA
 type Notice = { tone: 'error' | 'success'; text: string };
 const PASSWORD_ERROR = 'Password must be 12-200 characters';
 const LEVELS: AdminRole[] = ['superadmin', 'ops', 'intern'];
-const SELECT = 'h-13.5 w-full rounded-md border-[1.5px] border-line bg-white px-4 text-body-md text-ink outline-none focus:border-violet';
-const SELECT_SMALL = 'h-10 rounded-md border-[1.5px] border-line bg-white px-3 text-body text-ink outline-none focus:border-violet';
+const SELECT = 'h-11 w-full rounded-md border border-line-strong bg-white px-3.5 text-body text-ink outline-none focus:border-violet';
+const SELECT_SMALL = 'h-10 rounded-sm border border-line-strong bg-white px-3 text-body text-ink outline-none focus:border-violet';
 const validPassword = (p: string) => p.length >= 12 && p.length <= 200;
 
 export default function TeamPage() {
   return (
-    <AppShell title="Team">
+    <AppShell title="Team" description="Staff accounts for this panel. Admin sees everything, Operations runs venue offers, Intern handles people and support.">
       <Team />
     </AppShell>
   );
@@ -61,45 +61,37 @@ function Team() {
   };
 
   // A level without access gets the server's 403 message and nothing else: no table, no form.
-  if (loadError) return <p role="alert" className="text-danger">{loadError}</p>;
+  if (loadError) return <p role="alert" className="text-danger-ink">{loadError}</p>;
   if (admins === null) return <Skeleton className="h-40 w-full" />;
 
   return (
-    <div className="space-y-5">
-      {notice ? <p role={notice.tone === 'error' ? 'alert' : 'status'} className={notice.tone === 'success' ? 'text-success' : 'text-danger'}>{notice.text}</p> : null}
+    <div className="space-y-6">
+      {notice ? <p role={notice.tone === 'error' ? 'alert' : 'status'} className={notice.tone === 'success' ? 'text-success-ink' : 'text-danger-ink'}>{notice.text}</p> : null}
       <Card padded={false}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-body">
-            <thead className="text-caption-sb text-ink-muted">
-              <tr>
-                {['Name', 'Email', 'Level', 'Status', 'Created', 'Actions'].map((h) => (
-                  <th key={h} scope="col" className="px-4 py-3 font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+        <Table>
+          <thead><tr>{['Name', 'Email', 'Level', 'Status', 'Created', 'Actions'].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
+          <tbody>
               {admins.map((a) => (
-                <tr key={a._id} className="border-t border-line align-middle">
-                  <td className="px-4 py-3">{a.name}</td>
-                  <td className="px-4 py-3 break-all">{a.email}</td>
-                  <td className="px-4 py-3">
+                <tr key={a._id}>
+                  <Td><span className="flex items-center gap-3"><Avatar name={a.name} /><span className="font-semibold">{a.name}</span></span></Td>
+                  <Td className="break-all text-ink-muted">{a.email}</Td>
+                  <Td>
                     <select aria-label={`Level for ${a.name}`} value={a.role} disabled={busy} onChange={(e) => patch(a, { role: e.target.value as AdminRole })} className={SELECT_SMALL}>
                       {LEVELS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                     </select>
-                  </td>
-                  <td className="px-4 py-3"><Pill label={a.disabled ? 'Disabled' : 'Active'} tone={a.disabled ? 'neutral' : 'success'} /></td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(a.createdAt)}</td>
-                  <td className="px-4 py-3">
+                  </Td>
+                  <Td><Pill label={a.disabled ? 'Disabled' : 'Active'} tone={a.disabled ? 'neutral' : 'success'} /></Td>
+                  <Td className="whitespace-nowrap text-ink-muted">{formatIstDateTime(a.createdAt)}</Td>
+                  <Td>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => patch(a, { disabled: !a.disabled })}>{a.disabled ? 'Enable' : 'Disable'}</Button>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => setResetFor(a)}>Reset password</Button>
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+          </tbody>
+        </Table>
       </Card>
       <AddAdmin onAdd={(input) => act(() => api<AdminResponse>('/admin/admins', { method: 'POST', body: input satisfies CreateAdminInput }), 'Admin added')} />
       {resetFor ? <ResetPassword
@@ -146,7 +138,10 @@ function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<strin
   return (
     <Card>
       <form onSubmit={submit} noValidate className="grid gap-4 sm:grid-cols-2">
-        <h2 className="font-display text-h3 sm:col-span-2">Add admin</h2>
+        <div className="sm:col-span-2">
+          <h2 className="font-display text-h4">Add admin</h2>
+          <p className="text-small text-ink-muted">They sign in with this email and the temporary password.</p>
+        </div>
         <Field label="Name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <div>
@@ -157,7 +152,7 @@ function AddAdmin({ onAdd }: { onAdd: (input: CreateAdminInput) => Promise<strin
         </div>
         <Field label="Temporary password" type="password" autoComplete="new-password" value={password} maxLength={200} hint="12-200 characters" onChange={(e) => setPassword(e.target.value)} />
         <div className="sm:col-span-2">
-          {error ? <p role="alert" className="mb-3 text-danger">{error}</p> : null}
+          {error ? <p role="alert" className="mb-3 text-danger-ink">{error}</p> : null}
           <Button type="submit">Add admin</Button>
         </div>
       </form>

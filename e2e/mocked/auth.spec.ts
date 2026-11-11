@@ -14,6 +14,7 @@ test('signs in and lands on the dashboard', async ({ page }) => {
   const calls = await mockApi(page, {
     'POST /moderation/login': () => ({ json: { accessToken: 't', role: 'superadmin', name: 'Asha' } }),
     'GET /admin/stats': () => fail(500, 'not under test'),
+    'GET /admin/budget': () => fail(500, 'not under test'),
   });
   await submitLogin(page);
   await expect(page).toHaveURL('/dashboard');

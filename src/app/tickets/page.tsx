@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShell } from '@/components/AppShell';
-import { ListPage } from '@/components/ListPage';
+import { ListPage, Who } from '@/components/ListPage';
 import { TicketStatusPill } from '@/components/TicketStatusPill';
 import { formatIstDateTime } from '@/lib/format';
 import type { TicketRow } from '@/lib/types';
@@ -14,7 +14,7 @@ const FILTERS = [
 /** Oldest open first: the server sorts oldest first, and the page opens on the Open filter. */
 export default function TicketsPage() {
   return (
-    <AppShell title="Support">
+    <AppShell title="Support" description="Messages from creators and brands. The oldest open tickets come first.">
       <ListPage<TicketRow>
         path="/admin/tickets"
         hideSearch
@@ -22,10 +22,10 @@ export default function TicketsPage() {
         initialStatus="open"
         rowHref={(r) => `/tickets/${r._id}`}
         columns={[
-          { header: 'Subject', cell: (r) => r.subject },
-          { header: 'From', cell: (r) => r.user?.name ?? 'Deleted account' },
+          { header: 'Subject', cell: (r) => <span className="font-semibold">{r.subject}</span> },
+          { header: 'From', cell: (r) => <Who name={r.user?.name ?? 'Deleted account'} sub={r.userRole === 'brand' ? 'Brand' : 'Creator'} /> },
           { header: 'Status', cell: (r) => <TicketStatusPill status={r.status} /> },
-          { header: 'Opened', cell: (r) => formatIstDateTime(r.createdAt) },
+          { header: 'Opened', cell: (r) => <span className="whitespace-nowrap text-ink-muted">{formatIstDateTime(r.createdAt)}</span> },
         ]}
       />
     </AppShell>

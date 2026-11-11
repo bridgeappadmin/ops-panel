@@ -8,7 +8,7 @@ import { CancelRefund } from '@/components/CancelRefund';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { OfferStatusPill } from '@/components/OfferStatusPill';
 import { VoucherStatusPill } from '@/components/VoucherStatusPill';
-import { Button, Card, Field, Skeleton } from '@/components/ui';
+import { Button, Card, Field, Skeleton, Stats, Table, Td, Th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
 import { fundedByLabel } from '@/lib/offers';
@@ -19,7 +19,7 @@ type Notice = { tone: 'error' | 'success'; text: string };
 // The shell's title is the offer's, which only the details (inside the shell, so signed in) load: they hand it up.
 export default function OfferPage() {
   const [title, setTitle] = useState('Offer');
-  return <AppShell title={title}><OfferDetails onTitle={setTitle} /></AppShell>;
+  return <AppShell title={title} hideTitle><OfferDetails onTitle={setTitle} /></AppShell>;
 }
 
 function OfferDetails({ onTitle }: { onTitle: (title: string) => void }) {
@@ -73,101 +73,105 @@ function OfferDetails({ onTitle }: { onTitle: (title: string) => void }) {
     closeDialog();
   }
 
-  if (loadError) return <p role="alert" className="text-danger">{loadError}</p>;
+  if (loadError) return <p role="alert" className="text-danger-ink">{loadError}</p>;
   if (!offer) return <Skeleton className="h-64 w-full" />;
 
   const ended = offer.status === 'ended';
-  const details: [string, string][] = [
-    ['Venue', `${offer.venue?.name ?? '—'}${offer.venue?.city ? `, ${offer.venue.city}` : ''}`],
-    ['Coupons', `${formatNumber(offer.remainingCoupons)} left of ${formatNumber(offer.totalCoupons)}`],
-    ['Discount', `₹${formatNumber(offer.discountInr)}`],
-    ['Cost', `${formatNumber(offer.connectsCost)} Connects`],
-    ['Funded by', fundedByLabel(offer.fundedBy)],
-    ['Voucher validity', `${offer.voucherValidityDays} days`],
-    ['Dates', `${formatIstDateTime(offer.startsAt)} to ${formatIstDateTime(offer.endsAt)}`],
-    ['Address', offer.address],
-    ['Requirements', offer.requirements.map((r) => `${r.platform} ${r.metric === 'followers' ? 'followers' : 'engagement %'} at least ${formatNumber(r.min)}`).join('; ') || 'None'],
+  const about: [string, string][] = [
     ['Description', offer.description],
     ['Terms', offer.terms],
     ['Deliverables', offer.deliverables || '—'],
+    ['Requirements', offer.requirements.map((r) => `${r.platform} ${r.metric === 'followers' ? 'followers' : 'engagement %'} at least ${formatNumber(r.min)}`).join('; ') || 'None'],
   ];
+  const logistics: [string, string][] = [
+    ['Venue', `${offer.venue?.name ?? '—'}${offer.venue?.city ? `, ${offer.venue.city}` : ''}`],
+    ['Funded by', fundedByLabel(offer.fundedBy)],
+    ['Dates', `${formatIstDateTime(offer.startsAt)} to ${formatIstDateTime(offer.endsAt)}`],
+    ['Address', offer.address],
+  ];
+  const list = (rows: [string, string][]) => (
+    <dl className="mt-3 divide-y divide-line">
+      {rows.map(([k, v]) => <div key={k} className="py-3"><dt className="text-caption text-ink-muted">{k}</dt><dd className="whitespace-pre-wrap break-words">{v}</dd></div>)}
+    </dl>
+  );
 
   return (
     <>
-      <div className="space-y-5">
-        <Link href="/offers" className="text-small-sb text-violet hover:underline">All offers</Link>
-        <Card>
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <OfferStatusPill offer={offer} />
+      <div className="space-y-6">
+        <Card padded={false}>
+          <div className="flex flex-wrap items-center gap-5 p-6">
+            <div className="min-w-0 flex-1 basis-72">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h1 className="font-display text-h1">{offer.title}</h1>
+                <OfferStatusPill offer={offer} />
+              </div>
+              <p className="mt-1.5 text-small text-ink-muted">{offer.venue?.name ?? '—'}{offer.venue?.city ? ` · ${offer.venue.city}` : ''} · {fundedByLabel(offer.fundedBy)}</p>
+            </div>
             {!ended && (
-              <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void patch({ status: offer.status === 'paused' ? 'active' : 'paused' })}>
                   {offer.status === 'paused' ? 'Resume' : 'Pause'}
                 </Button>
-                <Button variant="tint" size="sm" disabled={busy} onClick={() => setDialog('coupons')}>Add coupons</Button>
-                <Link href={`/offers/${offer._id}/edit`} className="inline-flex h-12.5 items-center rounded-md border-[1.5px] border-line bg-white px-4 text-body-sb text-ink hover:border-line-strong">Edit</Link>
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDialog('coupons')}>Add coupons</Button>
+                <Link href={`/offers/${offer._id}/edit`} className="inline-flex h-10 items-center rounded-sm border border-line-strong bg-white px-3.5 text-small-sb text-ink hover:bg-cloud">Edit</Link>
                 <Button variant="danger" size="sm" disabled={busy} onClick={() => setDialog('end')}>End offer</Button>
               </div>
             )}
           </div>
           {notice ? (
-            <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`mb-4 ${notice.tone === 'error' ? 'text-danger' : 'text-success'}`}>{notice.text}</p>
+            <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`border-t border-line bg-cloud px-6 py-3 ${notice.tone === 'error' ? 'text-danger-ink' : 'text-success-ink'}`}>{notice.text}</p>
           ) : null}
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
-            {details.map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="text-caption-sb text-ink-muted">{k}</dt>
-                <dd className="whitespace-pre-wrap break-words">{v}</dd>
-              </div>
-            ))}
-          </dl>
         </Card>
 
-        <h2 className="font-display text-h3">Vouchers</h2>
-        {vouchers === null ? (
-          <Skeleton className="h-24 w-full" />
-        ) : vouchers.length === 0 ? (
-          <Card><p className="text-ink-muted">No vouchers claimed yet.</p></Card>
-        ) : (
-          <Card padded={false}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-body">
-                <thead className="text-caption-sb text-ink-muted">
-                  <tr>
-                    {['Number', 'Creator', 'Status', 'Claimed', 'Expires', 'Redeemed', ''].map((h, i) => (
-                      <th key={i} scope="col" className="px-4 py-3 font-semibold">{h}</th>
-                    ))}
+        <Stats items={[
+          { label: 'Coupons', value: `${formatNumber(offer.remainingCoupons)} left of ${formatNumber(offer.totalCoupons)}` },
+          { label: 'Discount', value: `₹${formatNumber(offer.discountInr)}` },
+          { label: 'Cost', value: `${formatNumber(offer.connectsCost)} Connects` },
+          { label: 'Voucher validity', value: `${offer.voucherValidityDays} days` },
+        ]} />
+
+        <div className="grid items-start gap-6 xl:grid-cols-3">
+          <Card className="xl:col-span-2"><h2 className="font-display text-h4">The offer</h2>{list(about)}</Card>
+          <Card><h2 className="font-display text-h4">Where and when</h2>{list(logistics)}</Card>
+        </div>
+
+        <Card padded={false}>
+          <h2 className="p-6 pb-4 font-display text-h4">Vouchers</h2>
+          {vouchers === null ? (
+            <div className="px-6 pb-6"><Skeleton className="h-24 w-full" /></div>
+          ) : vouchers.length === 0 ? (
+            <p className="px-6 pb-6 text-ink-muted">No vouchers claimed yet.</p>
+          ) : (
+            <Table>
+              <thead><tr>{['Number', 'Creator', 'Status', 'Claimed', 'Expires', 'Redeemed', ''].map((h, i) => <Th key={i}>{h}</Th>)}</tr></thead>
+              <tbody>
+                {vouchers.map((v) => (
+                  <tr key={v._id}>
+                    <Td className="font-mono">{v.number}</Td>
+                    <Td>{v.creator.name || '—'}{v.creator.username ? <span className="text-ink-muted"> @{v.creator.username}</span> : null}</Td>
+                    <Td><VoucherStatusPill status={v.status} /></Td>
+                    <Td className="whitespace-nowrap text-ink-muted">{formatIstDateTime(v.createdAt)}</Td>
+                    <Td className="whitespace-nowrap text-ink-muted">{formatIstDateTime(v.expiresAt)}</Td>
+                    <Td className="whitespace-nowrap text-ink-muted">{v.redeemedAt ? formatIstDateTime(v.redeemedAt) : '—'}</Td>
+                    <Td className="text-right">
+                      {v.status === 'active' || v.status === 'redeemed' ? (
+                        // A cancel returns the coupon, so the offer's count changes too.
+                        <CancelRefund
+                          voucher={v}
+                          onDone={(text, ok) => { setNotice({ tone: ok ? 'success' : 'error', text }); void loadOffer(); void loadVouchers(); }}
+                        />
+                      ) : null}
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {vouchers.map((v) => (
-                    <tr key={v._id} className="border-t border-line align-middle">
-                      <td className="px-4 py-3 font-mono">{v.number}</td>
-                      <td className="px-4 py-3">{v.creator.name || '—'}{v.creator.username ? ` @${v.creator.username}` : ''}</td>
-                      <td className="px-4 py-3"><VoucherStatusPill status={v.status} /></td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(v.createdAt)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatIstDateTime(v.expiresAt)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">{v.redeemedAt ? formatIstDateTime(v.redeemedAt) : '—'}</td>
-                      <td className="px-4 py-3">
-                        {v.status === 'active' || v.status === 'redeemed' ? (
-                          // A cancel returns the coupon, so the offer's count changes too.
-                          <CancelRefund
-                            voucher={v}
-                            onDone={(text, ok) => { setNotice({ tone: ok ? 'success' : 'error', text }); void loadOffer(); void loadVouchers(); }}
-                          />
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        )}
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Card>
       </div>
 
       <ConfirmDialog open={dialog === 'end'} title="End this offer?" confirmLabel="End offer" dismissLabel="Keep offer" danger loading={busy} onConfirm={() => void confirmEnd()} onClose={closeDialog}>
-        <p className="text-center text-body text-ink-muted">This cannot be undone.</p>
+        <p className="text-body text-ink-muted">This cannot be undone.</p>
       </ConfirmDialog>
       <ConfirmDialog open={dialog === 'coupons'} title="Add coupons" confirmLabel="Add" loading={busy} onConfirm={() => void confirmAdd()} onClose={closeDialog}>
         <Field label="Coupons to add" type="number" inputMode="numeric" min={1} max={10000} value={count} onChange={(e) => setCount(e.target.value)} error={countError} hint="1 to 10,000" />

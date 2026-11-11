@@ -1,26 +1,27 @@
 export type PillTone = 'violet' | 'success' | 'warning' | 'danger' | 'neutral';
 
-// The tone at 12-14% for the fill and in full for the text, as the client's Pill.
+// Tint fill, dark text (4.5:1) and a dot in the tone's own colour.
 const TINT: Record<PillTone, string> = {
-  violet: 'bg-violet/12 text-violet',
-  success: 'bg-success/13 text-success',
-  warning: 'bg-warning/14 text-warning',
-  danger: 'bg-danger/13 text-danger',
-  neutral: 'bg-surface-tint text-ink-muted',
+  violet: 'bg-violet-tint text-violet-pressed',
+  success: 'bg-success-tint text-success-ink',
+  warning: 'bg-warning-tint text-warning-ink',
+  danger: 'bg-danger-tint text-danger-ink',
+  neutral: 'bg-mist text-ink-muted',
 };
-const SOLID: Record<PillTone, string> = {
+const DOT: Record<PillTone, string> = {
   violet: 'bg-violet',
   success: 'bg-success',
   warning: 'bg-warning',
   danger: 'bg-danger',
-  neutral: 'bg-ink-muted',
+  neutral: 'bg-ink-faint',
 };
 
-/** Status pill ("active", "redeemed"…). `solid` fills it with the tone and a white label. */
-export function Pill({ label, tone = 'neutral', solid = false, className = '' }: { label: string; tone?: PillTone; solid?: boolean; className?: string }) {
+/** Status pill ("active", "redeemed"…). The first letter shows capitalised; the text itself is left as given. */
+export function Pill({ label, tone = 'neutral', className = '' }: { label: string; tone?: PillTone; className?: string }) {
   return (
-    <span className={`inline-flex h-6.25 items-center whitespace-nowrap rounded-pill px-2.5 text-pill ${solid ? `${SOLID[tone]} text-white` : TINT[tone]} ${className}`}>
-      {label}
+    <span className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 text-caption-sb ${TINT[tone]} ${className}`}>
+      <span aria-hidden className={`size-1.5 rounded-pill ${DOT[tone]}`} />
+      <span className="inline-block first-letter:uppercase">{label}</span>
     </span>
   );
 }

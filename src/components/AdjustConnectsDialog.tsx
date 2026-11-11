@@ -32,7 +32,7 @@ export function AdjustConnectsDialog({ onSubmit, onClose }: { onSubmit: (input: 
         <Field label="Amount" type="number" value={amount} hint="Negative deducts" onChange={(e) => setAmount(e.target.value)} />
         <Field label="Shown to the creator" value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} />
         <Field area label="Internal note" value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} />
-        {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
+        {error ? <p role="alert" className="text-small text-danger-ink">{error}</p> : null}
       </div>
     </ConfirmDialog>
   );

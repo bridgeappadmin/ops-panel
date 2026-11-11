@@ -3,9 +3,9 @@ import type { ButtonHTMLAttributes } from 'react';
 export type ButtonVariant =
   /** Violet fill, white label, violet glow: the one CTA per page. */
   | 'primary'
-  /** White, 1.5 line border, ink label. */
+  /** White, hairline border, ink label. */
   | 'secondary'
-  /** surfaceTint fill, violet label: the paired action in dialogs. */
+  /** violetTint fill, violet label. */
   | 'tint'
   | 'danger'
   /** No chrome, violet label. */
@@ -14,16 +14,15 @@ export type ButtonSize = 'lg' | 'md' | 'sm';
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-violet text-white enabled:shadow-violet enabled:hover:bg-violet-pressed',
-  secondary: 'bg-white text-ink border-[1.5px] border-line enabled:hover:border-line-strong',
-  tint: 'bg-surface-tint text-violet enabled:hover:bg-violet-tint',
-  danger: 'bg-danger text-white',
-  ghost: 'bg-transparent text-violet enabled:hover:bg-surface-tint',
+  secondary: 'bg-white text-ink border border-line-strong enabled:hover:bg-cloud',
+  tint: 'bg-violet-tint text-violet-pressed enabled:hover:bg-lavender/60',
+  danger: 'bg-danger-ink text-white enabled:hover:bg-danger-ink/90',
+  ghost: 'bg-transparent text-violet-pressed enabled:hover:bg-violet-tint',
 };
-// Page CTAs use the Urbanist display face; sm (dialogs, sheets, table rows) uses Inter.
 const SIZE: Record<ButtonSize, string> = {
-  lg: 'h-15 px-5 rounded-lg font-display text-h4',
-  md: 'h-14 px-4.5 rounded-lg font-display text-h5',
-  sm: 'h-12.5 px-4 rounded-md text-body-sb',
+  lg: 'h-12 px-5 rounded-md text-body-sb',
+  md: 'h-11 px-4.5 rounded-md text-body-sb',
+  sm: 'h-10 px-3.5 rounded-sm text-small-sb',
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

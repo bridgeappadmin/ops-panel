@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { Button, Card, Chip, Field, Pager, Pill, Skeleton } from '@/components/ui';
+import { Button, Card, Field, Pager, Pill, Skeleton, Tabs } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -26,7 +26,7 @@ function actionsFor(r: ModerationReport, isAdmin: boolean): ModerationAction[] {
 
 function Person({ p }: { p: ReportPerson | null }) {
   if (!p) return <>Deleted account</>;
-  return <Link href={`/${p.role === 'brand' ? 'brands' : 'creators'}/${p._id}`} className="text-violet hover:underline">{p.name}</Link>;
+  return <Link href={`/${p.role === 'brand' ? 'brands' : 'creators'}/${p._id}`} className="font-semibold text-violet-pressed hover:underline">{p.name}</Link>;
 }
 
 function ReportCard({ report, isAdmin, onChange }: { report: ModerationReport; isAdmin: boolean; onChange: (r: ModerationReport) => void }) {
@@ -55,28 +55,27 @@ function ReportCard({ report, isAdmin, onChange }: { report: ModerationReport; i
       <article>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-h3 capitalize">{report.reason}</h2>
-            <p className="text-body text-ink-muted">
-              <Person p={report.reporter} /> reported <Person p={report.subject} /> · {report.targetType}
+            <h2 className="font-display text-h4 first-letter:uppercase">{report.reason}</h2>
+            <p className="mt-1 text-small text-ink-muted">
+              <Person p={report.reporter} /> reported <Person p={report.subject} /> · {report.targetType} · {formatIstDateTime(report.createdAt)}
             </p>
-            <p className="text-caption text-ink-muted">{formatIstDateTime(report.createdAt)}</p>
           </div>
           <Pill label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} tone={report.status === 'pending' ? 'warning' : report.status === 'reviewing' ? 'violet' : 'neutral'} />
         </div>
-        {report.details ? <p className="mt-3 whitespace-pre-wrap text-body">{report.details}</p> : null}
-        {report.snapshot ? <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-surface-tint p-3 text-caption">{report.snapshot}</pre> : null}
+        {report.details ? <p className="mt-4 whitespace-pre-wrap break-words">{report.details}</p> : null}
+        {report.snapshot ? <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-cloud p-4 font-body text-small">{report.snapshot}</pre> : null}
         {report.mediaUrl && /^https?:\/\//.test(report.mediaUrl)
-          ? <p className="mt-2 text-caption"><a href={report.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-violet hover:underline">Reported media</a></p> : null}
-        {report.resolution !== 'none' ? <p className="mt-2 text-caption text-ink-muted">Decision: {report.resolution.replace(/_/g, ' ')}</p> : null}
+          ? <p className="mt-3 text-small"><a href={report.mediaUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-violet-pressed hover:underline">Reported media</a></p> : null}
+        {report.resolution !== 'none' ? <p className="mt-3 text-small text-ink-muted">Decision: {report.resolution.replace(/_/g, ' ')}</p> : null}
         {actions.length ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-5 space-y-3 border-t border-line pt-5">
             <Field label="Note" value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} />
             <div className="flex flex-wrap gap-2">
               {actions.map((a) => <Button key={a} size="sm" variant={a === 'hide' || a === 'suspend' ? 'danger' : 'secondary'} disabled={busy} onClick={() => decide(a)}>{LABEL[a]}</Button>)}
             </div>
           </div>
         ) : null}
-        {error ? <p role="alert" className="mt-3 text-danger">{error}</p> : null}
+        {error ? <p role="alert" className="mt-3 text-danger-ink">{error}</p> : null}
       </article>
     </Card>
   );
@@ -103,13 +102,13 @@ function Queue() {
 
   return (
     <div className="space-y-4">
-      <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => <Chip key={f.value} label={f.label} selected={status === f.value} onClick={() => { setStatus(f.value); setPage(1); setData(null); }} />)}
+      <div className="border-b border-line-strong">
+        <Tabs label="Filter by status" options={FILTERS} value={status} onChange={(v) => { setStatus(v); setPage(1); setData(null); }} />
       </div>
-      {error ? <p role="alert" className="text-danger">{error}</p> : null}
+      {error ? <p role="alert" className="text-danger-ink">{error}</p> : null}
       {data === null ? (error ? null : <Skeleton className="h-40 w-full" />) : (
         <>
-          {data.results.length === 0 ? <Card><p className="text-ink-muted">Nothing found.</p></Card> : data.results.map((r) => <ReportCard key={r._id} report={r} isAdmin={isAdmin} onChange={update} />)}
+          {data.results.length === 0 ? <Card><p className="py-8 text-center text-ink-muted">Nothing found.</p></Card> : data.results.map((r) => <ReportCard key={r._id} report={r} isAdmin={isAdmin} onChange={update} />)}
           <Pager page={data.page} totalPages={data.totalPages} onPage={(p) => { setPage(p); setData(null); }} />
         </>
       )}
@@ -118,5 +117,5 @@ function Queue() {
 }
 
 export default function ModerationPage() {
-  return <AppShell title="Moderation"><Queue /></AppShell>;
+  return <AppShell title="Moderation" description="Reports from users about profiles, campaigns, media, reviews and messages. Review each one and decide."><Queue /></AppShell>;
 }

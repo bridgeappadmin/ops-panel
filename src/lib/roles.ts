@@ -2,24 +2,24 @@ import type { AdminRole } from './types';
 
 export const ROLE_LABEL: Record<AdminRole, string> = { superadmin: 'Admin', ops: 'Operations', intern: 'Intern' };
 
-export interface Section { href: string; label: string; roles: AdminRole[] }
+export interface Section { href: string; label: string; group: string; roles: AdminRole[] }
 
 const A: AdminRole = 'superadmin', O: AdminRole = 'ops', I: AdminRole = 'intern';
-/** The menu, in order. Admin (superadmin) is in every row. */
+/** The menu, in order; the sidebar shows a heading over each run of the same `group`. Admin (superadmin) is in every row. */
 export const SECTIONS: Section[] = [
-  { href: '/dashboard', label: 'Dashboard', roles: [A] },
-  { href: '/creators', label: 'Creators', roles: [A, I] },
-  { href: '/brands', label: 'Brands', roles: [A, I] },
-  { href: '/campaigns', label: 'Campaigns', roles: [A, I] },
-  { href: '/jobs', label: 'Jobs', roles: [A, I] },
-  { href: '/moderation', label: 'Moderation', roles: [A, I] },
-  { href: '/tickets', label: 'Support', roles: [A, I] },
-  { href: '/offers', label: 'Offers', roles: [A, O] },
-  { href: '/vouchers', label: 'Vouchers', roles: [A, O] },
-  { href: '/reports', label: 'Reports', roles: [A, O] },
-  { href: '/settings', label: 'Settings', roles: [A] },
-  { href: '/notifications', label: 'Push', roles: [A] },
-  { href: '/team', label: 'Team', roles: [A] },
+  { href: '/dashboard', label: 'Dashboard', group: 'Overview', roles: [A] },
+  { href: '/creators', label: 'Creators', group: 'People', roles: [A, I] },
+  { href: '/brands', label: 'Brands', group: 'People', roles: [A, I] },
+  { href: '/campaigns', label: 'Campaigns', group: 'Marketplace', roles: [A, I] },
+  { href: '/jobs', label: 'Jobs', group: 'Marketplace', roles: [A, I] },
+  { href: '/moderation', label: 'Moderation', group: 'Trust and safety', roles: [A, I] },
+  { href: '/tickets', label: 'Support', group: 'Trust and safety', roles: [A, I] },
+  { href: '/offers', label: 'Offers', group: 'Venue rewards', roles: [A, O] },
+  { href: '/vouchers', label: 'Vouchers', group: 'Venue rewards', roles: [A, O] },
+  { href: '/reports', label: 'Reports', group: 'Venue rewards', roles: [A, O] },
+  { href: '/settings', label: 'Settings', group: 'Workspace', roles: [A] },
+  { href: '/notifications', label: 'Push notifications', group: 'Workspace', roles: [A] },
+  { href: '/team', label: 'Team', group: 'Workspace', roles: [A] },
 ];
 
 /** The section owning a path: the longest href that is the path or a parent of it. */

@@ -5,14 +5,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccountCard } from '@/components/AccountCard';
 import { AdjustConnectsDialog } from '@/components/AdjustConnectsDialog';
 import { AppShell } from '@/components/AppShell';
-import { History } from '@/components/History';
-import { Button, Card, Pager, Skeleton, Table, Td, Th } from '@/components/ui';
+import { History, Reports } from '@/components/History';
+import { Button, Card, Chip, Icon, Pager, Pill, Skeleton, Stats, Table, Td, Th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
 import type { AccountPage, AdjustConnectsInput, CreatorDetail, LedgerRow } from '@/lib/types';
 
 export default function CreatorPage() {
-  return <AppShell title="Creator"><Creator /></AppShell>;
+  return <AppShell title="Creator" hideTitle><Creator /></AppShell>;
 }
 
 function Creator() {
@@ -40,61 +40,89 @@ function Creator() {
     return '';
   }
 
-  if (error && !detail) return <p role="alert" className="text-danger">{error}</p>;
+  if (error && !detail) return <p role="alert" className="text-danger-ink">{error}</p>;
   if (!detail) return <Skeleton className="h-40 w-full" />;
   const { creator, socials, counts, reports, history, suspension } = detail;
 
   return (
-    <div className="space-y-5">
-      {error ? <p role="alert" className="text-danger">{error}</p> : null}
+    <div className="space-y-6">
+      {error ? <p role="alert" className="text-danger-ink">{error}</p> : null}
       <AccountCard
         kind="creator" profile={creator} suspension={suspension} onChanged={loadDetail}
-        extra={<Button variant="secondary" size="sm" onClick={() => setAdjusting(true)}>Adjust Connects</Button>}
+        extra={<Button variant="secondary" size="sm" onClick={() => setAdjusting(true)}><Icon name="coins" size={16} />Adjust Connects</Button>}
       />
       {adjusting ? <AdjustConnectsDialog onSubmit={adjust} onClose={() => setAdjusting(false)} /> : null}
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Card><p className="text-caption-sb text-ink-muted">Connects balance</p><p data-testid="balance" className="font-display text-h2">{formatNumber(creator.connectsBalance ?? 0)}</p></Card>
-        <Card><p className="text-caption-sb text-ink-muted">Applications</p><p className="font-display text-h2">{formatNumber(counts.applications)}</p></Card>
-        <Card><p className="text-caption-sb text-ink-muted">Jobs</p><p className="font-display text-h2">{formatNumber(counts.jobs)}</p></Card>
+      <Stats items={[
+        { label: 'Total followers', value: formatNumber(creator.totalFollowers ?? 0) },
+        { label: 'Connects balance', value: formatNumber(creator.connectsBalance ?? 0), testId: 'balance' },
+        { label: 'Applications', value: formatNumber(counts.applications) },
+        { label: 'Jobs', value: formatNumber(counts.jobs) },
+      ]} />
+      <div className="grid items-start gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <Card>
+            <h2 className="font-display text-h4">Social accounts</h2>
+            {socials.length === 0 ? <p className="mt-3 text-ink-muted">No connected accounts.</p> : (
+              <ul className="mt-4 space-y-3">
+                {socials.map((s) => (
+                  <li key={`${s.platform}-${s.username}`} className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-md border border-line p-4">
+                    <div className="flex min-w-0 flex-1 basis-52 items-center gap-3">
+                      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-sm bg-violet-tint text-violet-pressed">
+                        <Icon name={s.platform === 'instagram' ? 'instagram' : s.platform === 'youtube' ? 'youtube' : 'users'} size={20} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-body-sb capitalize">{s.platform}</p>
+                        <p className="truncate text-small">
+                          {s.username ? (s.profileLink && /^https?:\/\//.test(s.profileLink) ? <a href={s.profileLink} target="_blank" rel="noreferrer" className="text-violet-pressed hover:underline">@{s.username}</a> : `@${s.username}`) : null}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-8 tabular-nums">
+                      <p><span className="block text-caption text-ink-muted">Followers</span><span className="font-semibold">{formatNumber(s.followers)}</span></p>
+                      <p><span className="block text-caption text-ink-muted">Engagement</span><span className="font-semibold">{s.engagementRate}%</span></p>
+                    </div>
+                    {s.tokenExpired ? <Pill label="Token expired" tone="warning" /> : <Pill label="Connected" tone="success" />}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card padded={false}>
+            <div className="p-6 pb-4">
+              <h2 className="font-display text-h4">Connects ledger</h2>
+              <p className="text-small text-ink-muted">Every credit and debit, newest first</p>
+            </div>
+            {ledger && ledger.results.length === 0 ? <p className="px-6 pb-6 text-ink-muted">No Connects activity.</p> : (
+              <Table>
+                <thead><tr><Th>When</Th><Th>Type</Th><Th>Reason</Th><Th className="text-right">Amount</Th><Th className="text-right">Balance after</Th></tr></thead>
+                <tbody>
+                  {ledger?.results.map((l) => (
+                    <tr key={l._id}>
+                      <Td className="whitespace-nowrap text-ink-muted">{formatIstDateTime(l.createdAt)}</Td>
+                      <Td><span className="rounded-[6px] bg-mist px-2 py-0.5 text-caption-sb text-ink-muted">{l.type}</span></Td>
+                      <Td>{l.reason ?? ''}</Td>
+                      <Td className={`text-right font-semibold ${l.amount > 0 ? 'text-success-ink' : ''}`}>{l.amount > 0 ? `+${l.amount}` : l.amount}</Td>
+                      <Td className="text-right text-ink-muted">{l.balanceAfter}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {ledger ? <Pager page={ledgerPage} totalPages={ledger.totalPages} onPage={loadLedger} /> : null}
+          </Card>
+          <Reports rows={reports} subject="this creator" />
+        </div>
+        <div className="space-y-6">
+          {creator.bio || creator.niches?.length ? (
+            <Card>
+              <h2 className="font-display text-h4">About</h2>
+              {creator.bio ? <p className="mt-3 whitespace-pre-wrap text-ink-muted">{creator.bio}</p> : null}
+              {creator.niches?.length ? <div className="mt-4 flex flex-wrap gap-2">{creator.niches.map((n) => <Chip key={n} label={n} />)}</div> : null}
+            </Card>
+          ) : null}
+          <History rows={history} />
+        </div>
       </div>
-      <Card>
-        <h2 className="font-display text-h3">Socials</h2>
-        {socials.length === 0 ? <p className="mt-2 text-ink-muted">No connected accounts.</p> : (
-          <ul className="mt-3 space-y-2">
-            {socials.map((s) => (
-              <li key={`${s.platform}-${s.username}`} className="text-body">
-                <span className="text-body-sb capitalize">{s.platform}</span>{' '}
-                {s.username ? (s.profileLink && /^https?:\/\//.test(s.profileLink) ? <a href={s.profileLink} target="_blank" rel="noreferrer" className="text-violet hover:underline">@{s.username}</a> : `@${s.username}`) : null}
-                {' · '}{formatNumber(s.followers)} followers · {s.engagementRate}% engagement{s.tokenExpired ? ' · token expired' : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-      <Card padded={false}>
-        <h2 className="px-4 pt-4 font-display text-h3">Connects ledger</h2>
-        {ledger && ledger.results.length === 0 ? <p className="p-4 text-ink-muted">No Connects activity.</p> : (
-          <Table>
-            <thead><tr><Th>When</Th><Th>Type</Th><Th>Amount</Th><Th>Balance after</Th><Th>Reason</Th></tr></thead>
-            <tbody>
-              {ledger?.results.map((l) => (
-                <tr key={l._id}>
-                  <Td className="whitespace-nowrap">{formatIstDateTime(l.createdAt)}</Td><Td>{l.type}</Td>
-                  <Td>{l.amount > 0 ? `+${l.amount}` : l.amount}</Td><Td>{l.balanceAfter}</Td><Td>{l.reason ?? ''}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-        {ledger ? <Pager page={ledgerPage} totalPages={ledger.totalPages} onPage={loadLedger} /> : null}
-      </Card>
-      {reports.length ? (
-        <Card>
-          <h2 className="font-display text-h3">Reports</h2>
-          <ul className="mt-3 space-y-1">{reports.map((r) => <li key={r._id} className="text-body">{r.reason} · {r.status}{r.resolution ? ` (${r.resolution})` : ''}</li>)}</ul>
-        </Card>
-      ) : null}
-      <History rows={history} />
     </div>
   );
 }

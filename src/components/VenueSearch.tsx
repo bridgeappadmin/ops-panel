@@ -33,7 +33,7 @@ export function VenueSearch({ onPick }: { onPick: (venue: Venue) => void }) {
         <ul className="mt-2 divide-y divide-line rounded-md border border-line bg-white">
           {results.map((b) => (
             <li key={b._id}>
-              <button type="button" className="w-full px-4 py-3 text-left text-body hover:bg-surface-tint" onClick={() => { onPick(b); setResults([]); }}>
+              <button type="button" className="w-full px-4 py-3 text-left text-body hover:bg-cloud" onClick={() => { onPick(b); setResults([]); }}>
                 {b.name ?? '—'} {b.username ? `@${b.username}` : ''} {b.city ?? ''} {b.phoneNumber ?? ''}
               </button>
             </li>

@@ -18,6 +18,12 @@ export function formatIstDateTime(iso: string): string {
   return `${t.getUTCDate()} ${MONTH_NAMES[t.getUTCMonth()]}, ${formatIstTime(iso)}`;
 }
 
+/** 'YYYY-MM-DD' (an IST day key, as /admin/stats sends) as '26 Oct'. */
+export function formatDay(day: string): string {
+  const [, month, date] = day.split('-').map(Number);
+  return `${date} ${MONTH_NAMES[month - 1]}`;
+}
+
 /** '1,00,000' */
 export const formatNumber = (n: number): string => n.toLocaleString('en-IN');
 

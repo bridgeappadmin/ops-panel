@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Card, Field, HeaderBand, LogoLockup } from '@/components/ui';
+import { Button, Field, LogoLockup, LogoMark } from '@/components/ui';
 import { login } from '@/lib/api';
 import { homeFor } from '@/lib/roles';
 import { session } from '@/lib/session';
@@ -32,23 +32,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <HeaderBand className="pt-12 pb-28">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-gutter text-center">
-          <LogoLockup tone="onInk" markSize={34} />
-          <h1 className="font-display text-h1">Tazmify Ops</h1>
+    <div className="grid min-h-screen bg-white lg:grid-cols-2">
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-12 text-white lg:flex">
+        <LogoLockup tone="onInk" markSize={28} />
+        <div className="relative max-w-md">
+          <p className="text-micro font-semibold uppercase text-lavender">Tazmify Admin</p>
+          <p className="mt-4 font-display text-display">Run the marketplace from one place.</p>
+          <p className="mt-4 text-body-lg text-sidebar-text">Creators, brands, venue offers and support, for the Tazmify team.</p>
         </div>
-      </HeaderBand>
-      <main className="relative -mt-16 px-gutter pb-12">
-        <Card elevated padded={false} className="mx-auto max-w-md p-6">
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <h2 className="font-display text-h3">Sign in</h2>
-            <Field label="Email" type="email" required autoComplete="username" variant="filled" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Field label="Password" type="password" required autoComplete="current-password" variant="filled" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
-
-            <Button type="submit" size="lg" block loading={loading}>Sign in</Button>
+        <p className="relative text-small text-sidebar-muted">Staff accounts only.</p>
+        <LogoMark size={520} tone="onInk" className="pointer-events-none absolute -right-28 -bottom-24 opacity-10" />
+      </aside>
+      <main className="flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm">
+          <LogoLockup markSize={28} className="mb-10 lg:hidden" />
+          <h1 className="font-display text-hero">Sign in</h1>
+          <p className="mt-2 text-body-lg text-ink-muted">Use your Tazmify staff account.</p>
+          <form onSubmit={submit} className="mt-8 flex flex-col gap-4">
+            <Field label="Email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Field label="Password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+            <Button type="submit" size="lg" block loading={loading} className="mt-2">Sign in</Button>
           </form>
-        </Card>
+        </div>
       </main>
     </div>
   );

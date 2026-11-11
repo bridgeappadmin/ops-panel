@@ -25,8 +25,8 @@ export function ConfirmDialog({ open, title, children, confirmLabel, dismissLabe
       title={title}
       actions={
         <>
-          <Button variant="tint" size="sm" disabled={loading} onClick={onClose}>{dismissLabel}</Button>
-          <Button variant={danger ? 'danger' : 'secondary'} size="sm" loading={loading} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="secondary" size="sm" disabled={loading} onClick={onClose}>{dismissLabel}</Button>
+          <Button variant={danger ? 'danger' : 'primary'} size="sm" loading={loading} onClick={onConfirm}>{confirmLabel}</Button>
         </>
       }
     >

@@ -12,18 +12,18 @@ const FILTERS: { label: string; value: '' | CampaignStatus }[] = [
 
 export default function CampaignsPage() {
   return (
-    <AppShell title="Campaigns">
+    <AppShell title="Campaigns" description="Every campaign brands have posted, from draft to completed.">
       <ListPage<CampaignRow>
         path="/admin/campaigns"
         filters={FILTERS}
         rowHref={(r) => `/campaigns/${r._id}`}
         searchLabel="Search"
         columns={[
-          { header: 'Title', cell: (r) => r.title },
+          { header: 'Title', cell: (r) => <span className="font-semibold">{r.title}</span> },
           { header: 'Brand', cell: (r) => r.brand?.name ?? 'Deleted account' },
-          { header: 'Applications', cell: (r) => r.applications },
+          { header: 'Applications', align: 'right', cell: (r) => r.applications },
           { header: 'Status', cell: (r) => <CampaignStatusPill status={r.status} /> },
-          { header: 'Created', cell: (r) => formatIstDateTime(r.createdAt) },
+          { header: 'Created', cell: (r) => <span className="whitespace-nowrap text-ink-muted">{formatIstDateTime(r.createdAt)}</span> },
         ]}
       />
     </AppShell>

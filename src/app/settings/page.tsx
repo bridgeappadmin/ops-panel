@@ -21,8 +21,8 @@ const MAX = 10000;
 
 export default function SettingsPage() {
   return (
-    <AppShell title="Settings">
-      <div className="space-y-5">
+    <AppShell title="Settings" description="How creators earn and spend Connects, and the niches they pick from at sign-up.">
+      <div className="space-y-6">
         <ConnectsSettings />
         <Niches />
       </div>
@@ -41,7 +41,7 @@ function ConnectsSettings() {
     api<{ config: ConnectsConfig }>('/admin/settings/connects').then((r) => setSaved(r.config), (e: Error) => setError(e.message));
   }, []);
 
-  if (!saved) return error ? <p role="alert" className="text-danger">{error}</p> : <Skeleton className="h-40 w-full" />;
+  if (!saved) return error ? <p role="alert" className="text-danger-ink">{error}</p> : <Skeleton className="h-40 w-full" />;
 
   const num = (s: string) => (s.trim() === '' ? NaN : Number(s));
   const valid = (k: keyof ConnectsConfig, min: number) => {
@@ -63,9 +63,9 @@ function ConnectsSettings() {
 
   return (
     <Card>
-      <h2 className="font-display text-h3">Connects</h2>
-      <p className="mt-1 text-ink-muted">Changes apply within a minute. Quest and milestone rewards are set in code.</p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <h2 className="font-display text-h4">Connects</h2>
+      <p className="mt-1 text-small text-ink-muted">Changes apply within a minute. Quest and milestone rewards are set in code.</p>
+      <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
         {FIELDS.map((f) => (
           <Field
             key={f.key} label={f.label} type="number" inputMode="numeric" min={f.min} max={MAX} step={1}
@@ -75,9 +75,9 @@ function ConnectsSettings() {
           />
         ))}
       </div>
-      <div className="mt-4">
-        {error ? <p role="alert" className="mb-3 text-danger">{error}</p> : null}
-        {done ? <p role="status" className="mb-3 text-success">Saved</p> : null}
+      <div className="mt-6 border-t border-line pt-5">
+        {error ? <p role="alert" className="mb-3 text-danger-ink">{error}</p> : null}
+        {done ? <p role="status" className="mb-3 text-success-ink">Saved</p> : null}
         <Button disabled={changed.length === 0 || !allValid} loading={busy} onClick={save}>Save Connects settings</Button>
       </div>
     </Card>
@@ -106,23 +106,24 @@ function Niches() {
 
   return (
     <Card>
-      <h2 className="font-display text-h3">Niches</h2>
-      {error && !removing ? <p role="alert" className="mt-2 text-danger">{error}</p> : null}
+      <h2 className="font-display text-h4">Niches</h2>
+      <p className="mt-1 text-small text-ink-muted">Rename or remove one, or add a new one below.</p>
+      {error && !removing ? <p role="alert" className="mt-2 text-danger-ink">{error}</p> : null}
       {niches === null ? (error ? null : <Skeleton className="mt-3 h-24 w-full" />) : (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-4 grid gap-2 lg:grid-cols-2">
           {niches.map((n) => <NicheRow key={`${n._id}:${n.name}`} niche={n} disabled={busy} valid={valid}
             onRename={(v) => act(() => api(`/admin/niches/${n._id}`, { method: 'PATCH', body: { name: v.trim() } }))}
             onRemove={() => { setError(''); setRemoving(n); }} />)}
         </ul>
       )}
-      <form className="mt-4 flex items-end gap-3" onSubmit={async (e) => { e.preventDefault(); if (valid(name) && await act(() => api('/admin/niches', { method: 'POST', body: { name: name.trim() } }))) setName(''); }}>
+      <form className="mt-6 flex items-end gap-3 border-t border-line pt-5" onSubmit={async (e) => { e.preventDefault(); if (valid(name) && await act(() => api('/admin/niches', { method: 'POST', body: { name: name.trim() } }))) setName(''); }}>
         <Field label="New niche" value={name} maxLength={50} onChange={(e) => setName(e.target.value)} className="w-full sm:w-80" />
         <Button type="submit" disabled={!valid(name) || busy}>Add niche</Button>
       </form>
       <ConfirmDialog open={!!removing} danger title="Remove niche" confirmLabel="Remove" loading={busy} onClose={() => { setRemoving(null); setError(''); }}
         onConfirm={async () => { if (removing && await act(() => api(`/admin/niches/${removing._id}`, { method: 'DELETE' }))) setRemoving(null); }}>
         <p>Remove {removing?.name}? It stops being offered to new sign-ups.</p>
-        {error ? <p role="alert" className="mt-3 text-danger">{error}</p> : null}
+        {error ? <p role="alert" className="mt-3 text-danger-ink">{error}</p> : null}
       </ConfirmDialog>
     </Card>
   );
@@ -132,9 +133,9 @@ function NicheRow({ niche, disabled, valid, onRename, onRemove }: { niche: Niche
   const [v, setV] = useState(niche.name);
   const dirty = v.trim() !== niche.name;
   return (
-    <li className="flex items-center gap-2">
+    <li className="flex items-center gap-2 rounded-md border border-line p-2">
       <input aria-label={`Rename ${niche.name}`} value={v} maxLength={50} onChange={(e) => setV(e.target.value)}
-        className="h-10 w-full max-w-xs rounded-md border-[1.5px] border-line bg-white px-3 text-body text-ink outline-none focus:border-violet" />
+        className="h-10 min-w-0 flex-1 rounded-sm border border-transparent bg-white px-3 text-body text-ink outline-none hover:border-line focus:border-violet" />
       <Button variant="secondary" size="sm" aria-label={`Save ${niche.name}`} disabled={disabled || !dirty || !valid(v)} onClick={() => onRename(v)}>Save</Button>
       <Button variant="danger" size="sm" aria-label={`Remove ${niche.name}`} disabled={disabled} onClick={onRemove}>Remove</Button>
     </li>

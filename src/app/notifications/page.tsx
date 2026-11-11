@@ -17,8 +17,8 @@ const TONE: Record<BroadcastStatus, PillTone> = { queued: 'neutral', sending: 'v
 export default function NotificationsPage() {
   const [refresh, setRefresh] = useState(0);
   return (
-    <AppShell title="Push notifications">
-      <div className="space-y-5">
+    <AppShell title="Push notifications" description="Send a push to creators, brands or everyone, and see what already went out.">
+      <div className="space-y-6">
         <Compose onSent={() => setRefresh((n) => n + 1)} />
         <History refresh={refresh} />
       </div>
@@ -60,26 +60,26 @@ function Compose({ onSent }: { onSent: () => void }) {
   const ready = title.trim().length > 0 && body.trim().length > 0 && count !== null;
   return (
     <Card>
-      <h2 className="font-display text-h3">Send a push notification</h2>
-      <div className="mt-4 grid gap-4">
+      <h2 className="font-display text-h4">Send a push notification</h2>
+      <div className="mt-5 grid max-w-2xl gap-4">
         <div>
           <label htmlFor="audience" className="mb-1.5 block text-caption-sb text-ink">Audience</label>
           <select id="audience" value={audience} onChange={(e) => { setCount(null); setClientKey(crypto.randomUUID()); setAudience(e.target.value as BroadcastAudience); }}
-            className="h-13.5 w-full rounded-md border-[1.5px] border-line bg-white px-4 text-body-md text-ink outline-none focus:border-violet sm:w-80">
+            className="h-11 w-full rounded-md border border-line-strong bg-white px-3.5 text-body text-ink outline-none focus:border-violet sm:w-80">
             {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
           <p className="mt-1.5 text-caption text-ink-muted">{count === null ? 'Counting…' : `${formatNumber(count)} accounts`}</p>
         </div>
         <Field label="Title" value={title} maxLength={100} onChange={(e) => { setClientKey(crypto.randomUUID()); setTitle(e.target.value); }} />
         <Field area label="Message" value={body} maxLength={300} hint={`${body.length}/300`} onChange={(e) => { setClientKey(crypto.randomUUID()); setBody(e.target.value); }} />
-        {error && !confirming ? <p role="alert" className="text-danger">{error}</p> : null}
+        {error && !confirming ? <p role="alert" className="text-danger-ink">{error}</p> : null}
         <div><Button disabled={!ready} onClick={() => { setError(''); setConfirming(true); }}>Send</Button></div>
       </div>
       <ConfirmDialog open={confirming} title="Send notification" confirmLabel="Send" loading={busy} onConfirm={send} onClose={() => { if (!sending.current) setConfirming(false); }}>
         <p>Send to {count} accounts?</p>
         <p className="mt-2 text-body-sb">{title}</p>
         <p className="text-ink-muted">{body}</p>
-        {error ? <p role="alert" className="mt-3 text-danger">{error}</p> : null}
+        {error ? <p role="alert" className="mt-3 text-danger-ink">{error}</p> : null}
       </ConfirmDialog>
     </Card>
   );
@@ -99,18 +99,18 @@ function History({ refresh }: { refresh: number }) {
     return () => { stale = true; };
   }, [page, refresh]);
 
-  if (error) return <p role="alert" className="text-danger">{error}</p>;
+  if (error) return <p role="alert" className="text-danger-ink">{error}</p>;
   if (!data) return <Skeleton className="h-40 w-full" />;
   return (
     <Card padded={false}>
-      <h2 className="px-4 pt-4 font-display text-h3">History</h2>
-      {data.results.length === 0 ? <p className="p-4 text-ink-muted">Nothing sent yet.</p> : (
+      <h2 className="p-6 pb-4 font-display text-h4">Sent</h2>
+      {data.results.length === 0 ? <p className="px-6 pb-6 text-ink-muted">Nothing sent yet.</p> : (
         <Table>
           <thead><tr>{['Title', 'Sent by', 'Audience', 'Recipients', 'Status', 'Sent'].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
           <tbody>
             {data.results.map((b) => (
               <tr key={b._id}>
-                <Td>{b.title}</Td>
+                <Td className="font-semibold">{b.title}</Td>
                 <Td>{b.admin?.name ?? 'Deleted account'}</Td>
                 <Td>{LABEL[b.audience] ?? b.audience}</Td>
                 <Td>{formatNumber(b.recipients)}</Td>

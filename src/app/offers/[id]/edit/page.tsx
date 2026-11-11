@@ -16,7 +16,7 @@ function EditLoader() {
   useEffect(() => {
     api<OfferResponse>(`/admin/offers/${id}`).then((r) => setOffer(r.offer), (e: Error) => setError(e.message));
   }, [id]);
-  if (error) return <p role="alert" className="text-danger">{error}</p>;
+  if (error) return <p role="alert" className="text-danger-ink">{error}</p>;
   if (!offer) return <Skeleton className="h-64 w-full" />;
   return <OfferForm offer={offer} />;
 }

@@ -77,3 +77,31 @@ test('shows a partial refund as an alert and refreshes', async ({ page }) => {
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Voucher cancelled but not fully refunded — see the server log');
   await expect(page.getByRole('region', { name: 'Voucher details' })).toContainText('cancelled');
 });
+
+test('a number in the URL (from Jump to) fills the field and is looked up', async ({ page }) => {
+  const calls = await mockApi(page, { 'GET /admin/vouchers': () => ok({ voucher: voucher() }) });
+  await signIn(page);
+  await page.goto('/vouchers?number=TVABCD2345');
+  await expect(page.getByRole('region', { name: 'Voucher details' })).toContainText('Free coffee');
+  await expect(page.getByLabel('Voucher number')).toHaveValue('TVABCD2345');
+  expect(numbers(calls)).toEqual(['TVABCD2345']);
+});
+
+test('Jump to opens a section by name, or a voucher by number', async ({ page }) => {
+  await mockApi(page, {
+    'GET /admin/vouchers': () => ok({ voucher: voucher() }),
+    'GET /admin/reports/redemptions': () => ok({ month: '2026-11', rows: [] }),
+  });
+  await signIn(page, { role: 'ops' });
+  await page.goto('/vouchers');
+  const jump = page.getByRole('search').getByRole('combobox');
+  await page.keyboard.press('Control+k');
+  await expect(jump).toBeFocused();
+  await jump.fill('tvabcd2345');
+  await jump.press('Enter');
+  await expect(page).toHaveURL('/vouchers?number=tvabcd2345');
+  await expect(page.getByRole('region', { name: 'Voucher details' })).toBeVisible();
+  await jump.fill('repo');
+  await jump.press('Enter');
+  await expect(page).toHaveURL('/reports');
+});

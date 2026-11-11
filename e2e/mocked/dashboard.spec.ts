@@ -18,9 +18,10 @@ const stats: Stats = {
   openTickets: 7,
   pendingReports: 3,
 };
+const budget = () => ok({ month: '2026-10', usedConnects: 32500, capConnects: 50000 });
 
 test('shows every number from /admin/stats', async ({ page }) => {
-  await mockApi(page, { 'GET /admin/stats': () => ok(stats) });
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/stats': () => ok(stats) });
   await signIn(page);
   await page.goto('/dashboard');
   const main = page.getByRole('main');
@@ -33,7 +34,7 @@ test('shows every number from /admin/stats', async ({ page }) => {
 });
 
 test('open tickets links to /tickets and pending reports links to /moderation', async ({ page }) => {
-  await mockApi(page, { 'GET /admin/stats': () => ok(stats) });
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/stats': () => ok(stats) });
   await signIn(page);
   await page.goto('/dashboard');
   await expect(page.getByRole('main').getByRole('link', { name: /Open tickets/ })).toHaveAttribute('href', '/tickets');
@@ -41,7 +42,7 @@ test('open tickets links to /tickets and pending reports links to /moderation', 
 });
 
 test('the chart has 30 day groups', async ({ page }) => {
-  await mockApi(page, { 'GET /admin/stats': () => ok(stats) });
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/stats': () => ok(stats) });
   await signIn(page);
   await page.goto('/dashboard');
   await expect(page.locator('svg[role="img"] g[data-day]')).toHaveCount(30);
@@ -50,8 +51,18 @@ test('the chart has 30 day groups', async ({ page }) => {
 });
 
 test('shows an error when stats fail', async ({ page }) => {
-  await mockApi(page, { 'GET /admin/stats': () => fail(500, 'Boom') });
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/stats': () => fail(500, 'Boom') });
   await signIn(page);
   await page.goto('/dashboard');
   await expect(page.getByText('Boom')).toBeVisible();
+});
+
+test('shows the venue budget, linked to /offers', async ({ page }) => {
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/stats': () => ok(stats) });
+  await signIn(page);
+  await page.goto('/dashboard');
+  const card = page.getByRole('main').getByRole('link', { name: /Venue budget this month/ });
+  await expect(card).toHaveAttribute('href', '/offers');
+  await expect(card).toContainText('65%');
+  await expect(card.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '65');
 });

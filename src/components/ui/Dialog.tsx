@@ -13,7 +13,7 @@ type DialogProps = {
 };
 
 /**
- * A modal over the ink scrim: white card, radius 32, raised shadow. The native <dialog> traps focus. Esc only asks
+ * A modal over the ink scrim: white card, radius 22, raised shadow, actions bottom right. The native <dialog> traps focus. Esc only asks
  * `onClose`: `open` decides, so a parent that refuses while busy keeps the dialog up.
  */
 export function Dialog({ open, onClose, title, children, actions }: DialogProps) {
@@ -34,11 +34,11 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClose={onClose}
       aria-labelledby={titleId}
-      className="m-auto w-[calc(100%-28px)] max-w-sm rounded-dialog bg-white px-5 pt-6.5 pb-5 text-ink shadow-raised backdrop:bg-ink/42 backdrop:backdrop-blur-xs"
+      className="m-auto w-[calc(100%-32px)] max-w-md rounded-xl bg-white p-6 text-ink shadow-raised backdrop:bg-ink/42 backdrop:backdrop-blur-xs"
     >
-      <h2 id={titleId} className="text-center font-display text-h3">{title}</h2>
-      {children ? <div className="mt-3.5">{children}</div> : null}
-      {actions ? <div className="mt-5 flex gap-2.5 *:flex-1">{actions}</div> : null}
+      <h2 id={titleId} className="font-display text-h3">{title}</h2>
+      {children ? <div className="mt-4">{children}</div> : null}
+      {actions ? <div className="mt-6 flex flex-wrap justify-end gap-2.5">{actions}</div> : null}
     </dialog>
   );
 }

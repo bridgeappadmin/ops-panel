@@ -14,7 +14,7 @@ import type { Offer, RequirementMetric, RequirementPlatform, SavedOfferResponse,
 
 const PLATFORMS = [['instagram', 'Instagram'], ['youtube', 'YouTube']];
 const METRICS = [['followers', 'Followers'], ['engagementRate', 'Engagement %']];
-const selectCls = 'h-13.5 rounded-md border-[1.5px] border-line bg-white px-3 text-body text-ink outline-none focus:border-violet';
+const selectCls = 'h-11 rounded-md border border-line-strong bg-white px-3 text-body text-ink outline-none focus:border-violet';
 type TextKey = 'title' | 'address' | 'coords' | 'discountInr' | 'connectsCost' | 'totalCoupons' | 'voucherValidityDays' | 'startsAt' | 'endsAt';
 type AreaKey = 'description' | 'terms' | 'deliverables';
 
@@ -65,9 +65,11 @@ export function OfferForm({ offer }: { offer?: Offer }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-5">
+    <form onSubmit={submit} noValidate className="max-w-4xl space-y-6">
       <Card>
-        <div className="space-y-4">
+        <h2 className="font-display text-h4">Venue and offer</h2>
+        <p className="text-small text-ink-muted">Who is offering what, and where creators go to redeem it.</p>
+        <div className="mt-5 space-y-4">
           {offer ? (
             <p className="text-body"><span className="text-caption-sb text-ink-muted">Venue </span>{offer.venue?.name ?? '—'}{offer.venue?.city ? `, ${offer.venue.city}` : ''}</p>
           ) : (
@@ -82,18 +84,20 @@ export function OfferForm({ offer }: { offer?: Offer }) {
           {area('deliverables', 'Deliverables')}
           {text('address', 'Address')}
           <MapsLinkField coords={v.coords} onPlace={onPlace} />
-          <button type="button" aria-expanded={manual} className="text-caption-sb text-violet hover:underline" onClick={() => setManual((m) => !m)}>Enter coordinates instead</button>
+          <button type="button" aria-expanded={manual} className="text-small-sb text-violet-pressed hover:underline" onClick={() => setManual((m) => !m)}>Enter coordinates instead</button>
           {manual && text('coords', 'Coordinates (lat, lng)', { placeholder: '12.9716, 77.5946' })}
         </div>
       </Card>
       <Card>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <h2 className="font-display text-h4">Price and dates</h2>
+        <p className="text-small text-ink-muted">{offer ? 'Price and coupons are fixed once an offer exists.' : 'What creators pay in Connects, how many coupons, and when it runs.'}</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {!offer && text('discountInr', 'Discount (₹)', { type: 'number', min: 1 })}
           {!offer && text('connectsCost', 'Cost (Connects)', { type: 'number', min: 1 })}
           {!offer && text('totalCoupons', 'Coupons', { type: 'number', min: 1 })}
           {!offer && (
             <fieldset className="flex items-center gap-4 sm:col-span-2">
-              <legend className="mb-1.5 text-caption-sb text-ink">Funded by</legend>
+              <legend className="mb-1.5 text-small-sb text-ink">Funded by</legend>
               {(['brand', 'tazmify'] as const).map((f) => (
                 <label key={f} className="flex items-center gap-2 text-body">
                   <input type="radio" name="fundedBy" checked={v.fundedBy === f} onChange={() => set('fundedBy', f)} className="accent-violet" />
@@ -108,8 +112,9 @@ export function OfferForm({ offer }: { offer?: Offer }) {
         </div>
       </Card>
       <Card>
-        <h2 className="mb-3 font-display text-h4">Requirements</h2>
-        <div className="space-y-3">
+        <h2 className="font-display text-h4">Requirements</h2>
+        <p className="text-small text-ink-muted">Up to 4. A creator must meet every one to claim.</p>
+        <div className="mt-5 space-y-3">
           {v.requirements.map((r, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
               <select aria-label={`Platform ${i + 1}`} className={selectCls} value={r.platform} onChange={(e) => setReq(i, { platform: e.target.value as RequirementPlatform })}>
@@ -126,10 +131,10 @@ export function OfferForm({ offer }: { offer?: Offer }) {
             onClick={() => set('requirements', [...v.requirements, { platform: 'instagram', metric: 'followers', min: '' }])}>Add requirement</Button>
         </div>
       </Card>
-      {error ? <p role="alert" className="text-danger">{error}</p> : null}
-      <div className="flex items-center gap-3">
+      {error ? <p role="alert" className="text-danger-ink">{error}</p> : null}
+      <div className="flex items-center gap-4">
         <Button type="submit" size="lg" loading={busy}>{offer ? 'Save changes' : 'Create offer'}</Button>
-        {offer ? <Link href={`/offers/${offer._id}`} className="text-body-sb text-violet hover:underline">Cancel</Link> : null}
+        {offer ? <Link href={`/offers/${offer._id}`} className="text-body-sb text-violet-pressed hover:underline">Cancel</Link> : null}
       </div>
     </form>
   );
