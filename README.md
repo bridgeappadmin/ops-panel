@@ -59,7 +59,7 @@ never as `server/.env`; `e2e/stack/env.ts` parses it for Playwright. With `serve
 ```sh
 cd ../server
 set -a; . ../ops/e2e/stack/server.env.e2e; set +a
-npm run --silent e2e:seed   # drops tazmify_e2e, seeds admins, a venue and a creator, prints one line of JSON
+npm run --silent e2e:seed   # drops tazmify_e2e, seeds an admin per level, a venue, a creator, a ticket, a report, a campaign and a job; prints one line of JSON
 npm run dev                 # http://localhost:4010, after the seed (the seed's drop removes indexes built at boot)
 ```
 
@@ -97,17 +97,21 @@ Notes:
 
 The panel is a Netlify site (`netlify.toml`: `npm run build`, publish `.next`, Node 20; Netlify detects Next.js).
 
-1. New site from this repo, base directory `ops/`. Set `OPS_API_URL=https://api.tazmify.com` in the site's environment
+1. New site from this repo, base directory left empty (the app is at the repo's root). Set `OPS_API_URL=https://api.tazmify.com` in the site's environment
    (it is also committed in `.env.production`, which `npm run build` reads). It is baked in at build time, so change it
    and redeploy.
 2. **Add the site's URL (the Netlify one, and any custom domain) to `CORS_ORIGINS` in the server's `.env` on the VPS**,
-   comma separated, then restart the server. Sign-in goes from the browser straight to
+   comma separated, then restart the server. Each entry is a bare origin, `https://ops-tazmify.netlify.app`, with no
+   path and no trailing slash: the server matches it exactly. Sign-in goes from the browser straight to
    `${OPS_API_URL}/moderation/login` and is refused without it. Every other call stays on `/api/*`, which Netlify
    forwards to `OPS_API_URL`.
+3. Netlify deploy previews and branch deploys have origins of their own (`https://deploy-preview-12--<site>.netlify.app`).
+   Sign-in on one is refused until that origin is in `CORS_ORIGINS` too, so add it while you test there and remove it
+   after.
 
 Why sign-in skips the `/api` rewrite: through a proxy the server sees the proxy's address, not the staff member's, so
-the sign-in rate limit (5 tries per 15 minutes per address) would be shared by everyone or evaded with a forged
-`X-Forwarded-For`. Called directly, `req.ip` is the browser's own address. A blocked address gets
+the sign-in rate limit (5 failed tries per 15 minutes per email and IP) would be shared by everyone or evaded with a
+forged `X-Forwarded-For`. Called directly, `req.ip` is the browser's own address. A blocked email and IP pair gets
 "Too many attempts, try again in 15 minutes".
 
 ## Layout
@@ -115,5 +119,9 @@ the sign-in rate limit (5 tries per 15 minutes per address) would be shared by e
 - `src/lib/api.ts`: the only place that calls the server (`api`, `apiBlob`, `login`).
 - `src/lib/types.ts`: request and response shapes, mirroring the server's views.
 - `src/lib/session.ts`, `src/lib/format.ts`: the session store and IST/number formatting.
+- `src/lib/roles.ts`: the menu (`SECTIONS`), which levels (Admin, Operations, Intern) see each section, and each
+  level's landing page. The server's permission middleware is what actually enforces it.
 - `src/components/ui/`: the design kit (tokens live once, in `src/app/globals.css`).
-- `src/components/AppShell.tsx`: header band, nav and the signed-in guard. Every page but `/login` renders inside it.
+- `src/components/AppShell.tsx`: header band, nav, the signed-in guard and the level guard (a page outside the
+  signed-in level's sections renders "This page isn't available for your level." instead, so its fetches never run).
+  Every page but `/login` renders inside it.
