@@ -96,7 +96,7 @@ function Niches() {
     api<{ niches: Niche[] }>('/admin/niches').then((r) => setNiches(r.niches), (e: Error) => setError(e.message));
   }, []);
 
-  // One change at a time, then a refetch. A refusal shows under the section title.
+  // One change at a time, then a refetch. A refusal shows under the section title, or in the dialog while it is open.
   async function act(run: () => Promise<unknown>): Promise<boolean> {
     if (busy) return false;
     setBusy(true); setError('');
@@ -107,21 +107,22 @@ function Niches() {
   return (
     <Card>
       <h2 className="font-display text-h3">Niches</h2>
-      {error ? <p role="alert" className="mt-2 text-danger">{error}</p> : null}
+      {error && !removing ? <p role="alert" className="mt-2 text-danger">{error}</p> : null}
       {niches === null ? (error ? null : <Skeleton className="mt-3 h-24 w-full" />) : (
         <ul className="mt-3 space-y-2">
           {niches.map((n) => <NicheRow key={`${n._id}:${n.name}`} niche={n} disabled={busy} valid={valid}
             onRename={(v) => act(() => api(`/admin/niches/${n._id}`, { method: 'PATCH', body: { name: v.trim() } }))}
-            onRemove={() => setRemoving(n)} />)}
+            onRemove={() => { setError(''); setRemoving(n); }} />)}
         </ul>
       )}
       <form className="mt-4 flex items-end gap-3" onSubmit={async (e) => { e.preventDefault(); if (valid(name) && await act(() => api('/admin/niches', { method: 'POST', body: { name: name.trim() } }))) setName(''); }}>
         <Field label="New niche" value={name} maxLength={50} onChange={(e) => setName(e.target.value)} className="w-full sm:w-80" />
         <Button type="submit" disabled={!valid(name) || busy}>Add niche</Button>
       </form>
-      <ConfirmDialog open={!!removing} danger title="Remove niche" confirmLabel="Remove" loading={busy} onClose={() => setRemoving(null)}
+      <ConfirmDialog open={!!removing} danger title="Remove niche" confirmLabel="Remove" loading={busy} onClose={() => { setRemoving(null); setError(''); }}
         onConfirm={async () => { if (removing && await act(() => api(`/admin/niches/${removing._id}`, { method: 'DELETE' }))) setRemoving(null); }}>
         <p>Remove {removing?.name}? It stops being offered to new sign-ups.</p>
+        {error ? <p role="alert" className="mt-3 text-danger">{error}</p> : null}
       </ConfirmDialog>
     </Card>
   );

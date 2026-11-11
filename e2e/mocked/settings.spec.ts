@@ -57,3 +57,21 @@ test('niche add, rename and remove call the right endpoints', async ({ page }) =
   const m = calls.filter((r) => r.method() !== 'GET').map((r) => `${r.method()} ${new URL(r.url()).pathname} ${r.postData() ?? ''}`.trim());
   expect(m).toEqual(['POST /api/admin/niches {"name":"Food"}', 'PATCH /api/admin/niches/n1 {"name":"Style"}', 'DELETE /api/admin/niches/n2']);
 });
+
+test('a refused niche removal shows its reason in the dialog, which stays open', async ({ page }) => {
+  await mockApi(page, {
+    'GET /admin/settings/connects': () => ok({ config }),
+    'GET /admin/niches': () => ok({ niches: [{ _id: 'n1', name: 'Fashion' }] }),
+    'DELETE /admin/niches/n1': () => fail(400, 'Niche is in use by 12 creators'),
+  });
+  await signIn(page);
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Remove Fashion' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Remove' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Niche is in use by 12 creators');
+  await expect(page.getByText('Niche is in use by 12 creators')).toHaveCount(1); // not also behind the modal
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Niche is in use by 12 creators')).toHaveCount(0);
+});
