@@ -70,15 +70,38 @@ test('a decision PATCHes the action and note once; a server refusal message show
 });
 
 test('a decision updates the report in place', async ({ page }) => {
-  await mockApi(page, {
+  const calls = await mockApi(page, {
     'GET /moderation/reports': () => list([report()]),
-    'PATCH /moderation/reports/r1': (req) => { expect(req.postDataJSON()).toEqual({ action: 'reviewing' }); return ok({ report: { _id: 'r1', status: 'reviewing', resolution: 'none' } }); },
+    'PATCH /moderation/reports/r1': () => ok({ report: { _id: 'r1', status: 'reviewing', resolution: 'none' } }),
   });
   await signIn(page);
   await page.goto('/moderation');
-  await page.getByRole('button', { name: 'Reviewing', exact: true }).click();
-  await expect(page.getByRole('article')).toContainText('Reviewing');
-  await expect(page.getByRole('article')).toContainText('Asha Rao');
+  const card = page.getByRole('article');
+  // The card's own button, not the "Reviewing" status filter.
+  await card.getByRole('button', { name: 'Reviewing', exact: true }).click();
+  await expect.poll(() => buttons(page)).toEqual(['Dismiss', 'Warn', 'Hide']);
+  await expect(card.getByText('Reviewing', { exact: true })).toBeVisible(); // now only the status pill says it
+  const patches = calls.filter((r) => r.method() === 'PATCH');
+  expect(patches).toHaveLength(1);
+  expect(patches[0].postDataJSON()).toEqual({ action: 'reviewing' });
+  await expect(card).toContainText('Asha Rao');
+  await expect(page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: 'Pending' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the note is cleared after a decision, so the next one does not re-send it', async ({ page }) => {
+  const calls = await mockApi(page, {
+    'GET /moderation/reports': () => list([report()]),
+    'PATCH /moderation/reports/r1': () => ok({ report: { _id: 'r1', status: 'reviewing', resolution: 'none' } }),
+  });
+  await signIn(page);
+  await page.goto('/moderation');
+  const card = page.getByRole('article');
+  await card.getByLabel('Note').fill('checked');
+  await card.getByRole('button', { name: 'Reviewing', exact: true }).click();
+  await expect(card.getByLabel('Note')).toHaveValue('');
+  await card.getByRole('button', { name: 'Warn' }).click();
+  await expect.poll(() => calls.filter((r) => r.method() === 'PATCH').length).toBe(2);
+  expect(calls.filter((r) => r.method() === 'PATCH').map((r) => r.postDataJSON())).toEqual([{ action: 'reviewing', note: 'checked' }, { action: 'warn' }]);
 });
 
 test('a report whose subject was deleted shows "Deleted account"', async ({ page }) => {

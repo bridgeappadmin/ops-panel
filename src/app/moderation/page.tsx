@@ -45,6 +45,7 @@ function ReportCard({ report, isAdmin, onChange }: { report: ModerationReport; i
       if (note.trim()) body.note = note.trim();
       const { report: saved } = await api<{ report: Partial<ModerationReport> }>(`/moderation/reports/${report._id}`, { method: 'PATCH', body });
       onChange({ ...report, status: saved.status ?? report.status, resolution: saved.resolution ?? report.resolution });
+      setNote(''); // sent with this decision; don't re-send it with the next
     } catch (e) { setError((e as Error).message); } finally { sending.current = false; setBusy(false); }
   }
 
@@ -102,7 +103,7 @@ function Queue() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
         {FILTERS.map((f) => <Chip key={f.value} label={f.label} selected={status === f.value} onClick={() => { setStatus(f.value); setPage(1); setData(null); }} />)}
       </div>
       {error ? <p role="alert" className="text-danger">{error}</p> : null}
