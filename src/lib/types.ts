@@ -150,3 +150,36 @@ export interface UpdateAdminInput { role?: AdminRole; disabled?: boolean }
 export interface AdminResponse { admin: AdminAccount }
 /** `POST /admin/admins/:id/reset-password` body (12-200). Answers an empty `data`. */
 export interface ResetPasswordInput { password: string }
+
+// --- Creators and brands: services/admin/accounts.service.ts
+
+export type AccountStatus = 'active' | 'suspended' | 'deleted';
+export interface AccountRow { _id: string; name?: string; username?: string; email?: string; phoneNumber?: string; createdAt: string; status: AccountStatus }
+export interface CreatorRow extends AccountRow { profilePicture?: string; totalFollowers?: number; connectsBalance?: number }
+export interface BrandRow extends AccountRow { city?: string; verified?: boolean }
+/** `GET /admin/accounts/{creators|brands}?q=&status=&page=&limit=` */
+export interface AccountPage<T> { results: T[]; total: number; page: number; totalPages: number }
+
+export interface SocialView { platform: string; username?: string; profileLink?: string; followers: number; engagementRate: number; tokenExpired: boolean }
+export interface SuspensionView { admin: { by: { _id: string; name: string } | null; reason: string; at: string } | null; reportId: string | null }
+export interface AccountReportRow { _id: string; reason: string; status: string; resolution?: string; targetType: string; createdAt: string }
+/** services/admin/admin-actions.service.ts. `admin` is null when that admin is gone. */
+export interface AdminActionView { _id: string; action: string; details?: string | null; createdAt: string; admin: { _id: string; name: string } | null }
+export interface AccountProfile {
+  _id: string; name?: string; username?: string; email?: string; phoneNumber?: string; profilePicture?: string; bio?: string; city?: string;
+  niches?: string[]; verified?: boolean; onboardingComplete?: boolean; createdAt: string; deletedAccount?: boolean; moderationSuspended?: boolean;
+}
+export interface CreatorProfile extends AccountProfile { totalFollowers?: number; connectsBalance?: number }
+export interface CreatorDetail {
+  creator: CreatorProfile; socials: SocialView[]; counts: { applications: number; jobs: number };
+  reports: AccountReportRow[]; history: AdminActionView[]; suspension: SuspensionView;
+}
+export interface BrandDetail {
+  brand: AccountProfile;
+  campaigns: { _id: string; title: string; status: string; createdAt: string }[];
+  reviews: { count: number; average: number; latest: { _id: string; overallRating: number; comment?: string; reviewerRole?: string; createdAt: string }[] };
+  reports: AccountReportRow[]; history: AdminActionView[]; suspension: SuspensionView;
+}
+export interface LedgerRow { _id: string; type: string; amount: number; balanceAfter: number; reason?: string; createdAt: string }
+/** `POST …/connects` body: `amount` is a whole number from -100000 to 100000, not 0; reason 3-200; note up to 1000. */
+export interface AdjustConnectsInput { amount: number; reason: string; note?: string }

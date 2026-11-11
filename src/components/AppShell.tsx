@@ -47,7 +47,7 @@ export function AppShell({ title, actions, children }: { title: string; actions?
           </div>
           <div className="flex flex-wrap items-end justify-between gap-4 pt-6">
             <h1 className="font-display text-h1">{title}</h1>
-            {s ? actions : null}
+            {s && canOpen(s.role, pathname) ? actions : null}
           </div>
         </div>
       </HeaderBand>

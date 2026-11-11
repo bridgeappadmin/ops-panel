@@ -7,3 +7,5 @@ export { HeaderBand } from './HeaderBand';
 export { LogoLockup, LogoMark, type LogoTone } from './Logo';
 export { Pill, type PillTone } from './Pill';
 export { Skeleton } from './Skeleton';
+export { Pager } from './Pager';
+export { Table, Td, Th } from './Table';

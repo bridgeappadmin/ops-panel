@@ -40,3 +40,11 @@ test('a 429 on sign-in shows "Too many attempts, try again in 15 minutes"', asyn
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByText('Too many attempts, try again in 15 minutes')).toBeVisible();
 });
+
+test('an Intern on /offers sees no page action (the header actions follow the guard)', async ({ page }) => {
+  await mockApi(page, {});
+  await signIn(page, { role: 'intern' });
+  await page.goto('/offers');
+  await expect(page.getByText("This page isn't available for your level.")).toBeVisible();
+  await expect(page.getByRole('link', { name: 'New offer' })).toHaveCount(0);
+});
