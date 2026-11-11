@@ -224,3 +224,19 @@ export interface TicketDetail {
   user: { _id: string; role: 'creator' | 'brand'; name: string; email?: string; phoneNumber?: string } | null;
   history: AdminActionView[];
 }
+
+/** `GET /admin/settings/connects`: whole numbers 0-10000 (applicationCost and applicationCostFirst at least 1). */
+export interface ConnectsConfig {
+  applicationCost: number; applicationCostFirst: number; applicationCostFirstCount: number; signupGrant: number;
+  instagramGrant: number; youtubeGrant: number; monthlyRefill: number; balanceCeiling: number;
+}
+export interface Niche { _id: string; name: string }
+export type BroadcastAudience = 'everyone' | 'creators' | 'brands';
+export type BroadcastStatus = 'queued' | 'sending' | 'sent' | 'failed';
+/** `GET /admin/broadcasts`. `admin` is null when the sender is deleted. */
+export interface BroadcastRow {
+  _id: string; admin: { _id: string; name: string } | null; audience: BroadcastAudience; title: string; body: string;
+  status: BroadcastStatus; recipients: number; delivered: number; createdAt: string;
+}
+/** `POST /admin/broadcasts` body: title up to 100, body up to 300, `clientKey` a UUID (one per form). */
+export interface SendBroadcastInput { audience: BroadcastAudience; title: string; body: string; clientKey: string }
