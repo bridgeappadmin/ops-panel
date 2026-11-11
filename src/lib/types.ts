@@ -183,3 +183,17 @@ export interface BrandDetail {
 export interface LedgerRow { _id: string; type: string; amount: number; balanceAfter: number; reason?: string; createdAt: string }
 /** `POST …/connects` body: `amount` is a whole number from -100000 to 100000, not 0; reason 3-200; note up to 1000. */
 export interface AdjustConnectsInput { amount: number; reason: string; note?: string }
+
+export type CampaignStatus = 'draft' | 'active' | 'closed' | 'completed';
+export type JobStatus = 'hired' | 'in_progress' | 'completion_pending' | 'completed' | 'cancelled';
+export interface AdminClosed { reason: string; at: string }
+/** `GET /admin/campaigns`. `brand` is null when that brand is deleted. */
+export interface CampaignRow { _id: string; title: string; status: CampaignStatus; brand: { _id: string; name: string } | null; applications: number; createdAt: string; adminClosed: AdminClosed | null }
+/** `GET /admin/jobs`, and `jobs` of a campaign. Each party is null when deleted. */
+export interface JobRow { _id: string; status: JobStatus; campaign: { _id: string; title: string } | null; creator: { _id: string; name: string } | null; brand: { _id: string; name: string } | null; createdAt: string }
+export interface CampaignDetail {
+  campaign: { _id: string; title: string; niche?: string; about?: string; budgetMin?: number; budgetMax?: number; startDate?: string; endDate?: string; deliverables?: string[]; city?: string; pincode?: string; status: CampaignStatus; moderationHidden?: boolean; createdAt: string; adminClosed: AdminClosed | null };
+  brand: { _id: string; name: string } | null;
+  applicationCounts: { pending: number; accepted: number; rejected: number; hired: number };
+  jobs: JobRow[]; reports: AccountReportRow[]; history: AdminActionView[];
+}
