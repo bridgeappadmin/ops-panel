@@ -240,3 +240,17 @@ export interface BroadcastRow {
 }
 /** `POST /admin/broadcasts` body: title up to 100, body up to 300, `clientKey` a UUID (one per form). */
 export interface SendBroadcastInput { audience: BroadcastAudience; title: string; body: string; clientKey: string }
+
+/** `GET /admin/stats`. `signupsByDay` is 30 IST days, oldest first. */
+export interface Stats {
+  creators: { total: number; new30d: number };
+  brands: { total: number; new30d: number };
+  signupsByDay: { day: string; creators: number; brands: number }[];
+  campaigns: { draft: number; active: number; closed: number; completed: number };
+  applications30d: number;
+  jobs: { hired: number; in_progress: number; completion_pending: number; completed: number; cancelled: number };
+  connects30d: { earned: number; spent: number };
+  vouchersRedeemed30d: number;
+  openTickets: number;
+  pendingReports: number;
+}
