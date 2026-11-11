@@ -9,6 +9,7 @@ const PORT = 3100;
 // so the choice is handed to them in the environment.
 if (process.argv.some((arg, i, all) => arg === '--project=e2e' || (arg === '--project' && all[i + 1] === 'e2e'))) process.env.OPS_E2E = '1';
 const realStack = process.env.OPS_E2E === '1';
+const real = { testDir: 'e2e/real', timeout: 60_000, use: { ...devices['Desktop Chrome'], baseURL: E2E_APP_URL } };
 
 export default defineConfig({
   forbidOnly: !!process.env.CI,
@@ -18,8 +19,12 @@ export default defineConfig({
     { name: 'unit', testDir: 'e2e/unit' },
     // Browser specs against `next dev`; every /api call is answered by mockApi() in e2e/mocked/helpers.ts.
     { name: 'mocked', testDir: 'e2e/mocked', use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT}` } },
-    // The built Ops app against the real server, MongoDB and Redis (e2e/stack). `npm run test:e2e`.
-    ...(realStack ? [{ name: 'e2e', testDir: 'e2e/real', timeout: 60_000, use: { ...devices['Desktop Chrome'], baseURL: E2E_APP_URL } }] : []),
+    // The built Ops app against the real server, MongoDB and Redis (e2e/stack). `npm run test:e2e`. ops.spec.ts runs
+    // first, as e2e's dependency: admin.spec.ts ends by suspending the seeded creator, which signs its token out for good.
+    ...(realStack ? [
+      { ...real, name: 'e2e-offers', testMatch: 'ops.spec.ts' },
+      { ...real, name: 'e2e', testIgnore: 'ops.spec.ts', dependencies: ['e2e-offers'] },
+    ] : []),
   ],
   globalSetup: realStack ? './e2e/real/global-setup.ts' : undefined,
   webServer: realStack

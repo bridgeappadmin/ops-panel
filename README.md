@@ -69,13 +69,17 @@ npm run dev                 # http://localhost:4010, after the seed (the seed's 
 npm run test:e2e    # stack:up, then playwright test --project=e2e
 ```
 
-One serial scenario in `e2e/real/ops.spec.ts` drives every page in Chromium. Creator and venue steps (claim,
-live code, check, confirm, Connects balance) call the server directly with the seeded tokens. Each run:
+Two serial scenarios drive the pages in Chromium. `e2e/real/ops.spec.ts` (project `e2e-offers`) is the venue flow:
+offers, vouchers, reports and Team. `e2e/real/admin.spec.ts` (project `e2e`, which depends on `e2e-offers`, so it runs
+second) signs in one admin of each level (Admin, Operations, Intern) and covers what each can and can't do: Connects,
+suspension, campaign close, tickets, push, settings. Creator, venue and brand steps call the server directly with the
+seeded tokens. Each run:
 
-1. seeds first (`e2e:seed` drops `tazmify_e2e`; its JSON goes to the git-ignored `e2e/real/.seed.json`), then
-   starts a fresh server on `127.0.0.1:4010` with `e2e/stack/server.env.e2e`;
+1. seeds first (`e2e:seed` drops `tazmify_e2e`, clears the admin sign-in limiter's `rl:admin-login:*` keys in Redis,
+   and seeds an admin per level, a venue, a creator, a ticket, a report, a campaign and a job; its JSON goes to the
+   git-ignored `e2e/real/.seed.json`), then starts a fresh server on `127.0.0.1:4010` with `e2e/stack/server.env.e2e`;
 2. builds the app with `OPS_API_URL=http://127.0.0.1:4010` and serves it with `next start` on `127.0.0.1:3200`;
-3. `e2e/real/global-setup.ts` checks the server's `/health` and hands the seed to the spec.
+3. `e2e/real/global-setup.ts` checks the server's `/health` and hands the seed to the specs.
 
 Notes:
 - Run the `e2e` project on its own. Playwright's `webServer` is global to a run, so `--project=e2e` starts the real
@@ -83,8 +87,10 @@ Notes:
 - Ports 4010 and 3200 must be free; the run never reuses a running server.
 - The build writes `.next`. `next dev` keeps its output in `.next/dev`, so the mocked tests are unaffected, but
   run `npm run build` again before `npm start` against another server.
-- Admin sign-in is limited to 5 per 15 minutes per server process. A run uses all 5, and the fresh server per run
-  resets the count. Every other page reuses the superadmin session.
+- Admin sign-in allows 5 failed tries per 15 minutes per IP and email, counted in Redis, so the count outlives the
+  server; the seed clears it. Only the sign-ins a test is about go through the form; other pages reuse a session.
+- `admin.spec.ts` ends by suspending the seeded creator, which signs its token out for good. Rerun the whole thing
+  (it reseeds), not `ops.spec.ts` on its own after it.
 - The stack stays up afterwards; `npm run stack:down` removes it.
 
 ## Deployment

@@ -1,26 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { test as base, expect, request, type APIRequestContext, type Page } from '@playwright/test';
+import { request, type APIRequestContext, type Page } from '@playwright/test';
 import { seed as loadSeed, SERVER_URL, type E2eSeed } from './global-setup';
-
-// Fails a test on an uncaught error in a page, or a 5xx from the server, even where the page didn't show it.
-let problems: string[] = [];
-function watch(page: Page) {
-  page.on('pageerror', (error) => problems.push(`page error: ${error.message}`));
-  page.on('response', (res) => { if (res.status() >= 500) problems.push(`${res.status()} ${res.request().method()} ${res.url()}`); });
-}
-const test = base.extend<{ guard: void }>({
-  guard: [async ({ page }, use) => {
-    problems = [];
-    watch(page);
-    await use();
-    expect(problems).toEqual([]);
-  }, { auto: true }],
-});
+import { expect, signIn, test, watch } from './helpers';
 
 // One scenario against the real server, in order: every test builds on the state the ones before it left.
-// Admin sign-ins are limited to 5 per 15 minutes per server process, so only the 5 that the scenario is about go
-// through the form (wrong password, superadmin, ops, ops after the reset, disabled ops). Every other page reuses
-// the superadmin session from the second test.
+// Only the sign-ins that the scenario is about go through the form (wrong password, superadmin, ops, ops after the
+// reset, disabled ops). Every other page reuses the superadmin session from the second test.
 test.describe.configure({ mode: 'serial' });
 
 type AdminSession = { token: string; role: string; name: string };
@@ -58,13 +43,6 @@ async function asSuperadmin(page: Page) {
     sessionStorage.setItem('ops.role', s.role);
     sessionStorage.setItem('ops.name', s.name);
   }, superadmin);
-}
-
-async function signIn(page: Page, email: string, password: string) {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
 /** datetime-local wants the browser's local time; the browser and this process share the machine's time zone. */
@@ -113,9 +91,12 @@ test('refuses a wrong password', async ({ page }) => {
 
 test('signs in and shows the empty budget', async ({ page }) => {
   await signIn(page, seed.superadmin.email, seed.superadmin.password);
+  await expect(page).toHaveURL(/\/dashboard$/);
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  await expect(nav.getByRole('link', { name: 'Team' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Offers' }).click();
   await expect(page).toHaveURL(/\/offers$/);
   await expect(page.getByText('Tazmify-funded this month: 0 / 50,000 Connects')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admins' })).toBeVisible();
   superadmin = await page.evaluate(() => ({
     token: sessionStorage.getItem('ops.token')!, role: sessionStorage.getItem('ops.role')!, name: sessionStorage.getItem('ops.name')!,
   }));
@@ -313,12 +294,12 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await page.goto('/team');
   await page.getByLabel('Name', { exact: true }).fill(OPS2.name);
   await page.getByLabel('Email', { exact: true }).fill(OPS2.email);
-  await page.getByLabel('Role').selectOption('ops');
+  await page.getByLabel('Level', { exact: true }).selectOption('ops');
   await page.getByLabel('Temporary password').fill(OPS2.password);
   await page.getByRole('button', { name: 'Add admin' }).click();
   await expect(page.getByRole('status')).toHaveText('Admin added');
   const opsRow = page.getByRole('row', { name: new RegExp(OPS2.name) });
-  await expect(opsRow.getByRole('cell').nth(2)).toHaveText('ops');
+  await expect(opsRow.getByLabel(`Level for ${OPS2.name}`)).toHaveValue('ops');
   await expect(opsRow.getByRole('cell').nth(3)).toHaveText('Active');
 
   // The new ops admin, in a tab of its own.
@@ -328,7 +309,7 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await expect(ops).toHaveURL(/\/offers$/);
   await expect(ops.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveText(['Offers', 'Vouchers', 'Reports']);
   await ops.goto('/team');
-  await expect(ops.getByText('Not allowed for your role')).toBeVisible();
+  await expect(ops.getByText("This page isn't available for your level.")).toBeVisible();
   await expect(ops.getByRole('table')).toHaveCount(0);
 
   const selfRow = page.getByRole('row', { name: /E2E Superadmin/ });
@@ -364,13 +345,14 @@ test("switches an admin's role", async ({ page }) => {
   const roleOnServer = async () => ((await call('GET', '/admin/admins', superadmin.token)).body.data.admins as { email: string; role: string }[])
     .find((a) => a.email === OPS2.email)?.role;
   await page.goto('/team');
-  const row = page.getByRole('row', { name: new RegExp(OPS2.name) });
+  const level = page.getByRole('row', { name: new RegExp(OPS2.name) }).getByLabel(`Level for ${OPS2.name}`);
+  await expect(level.locator('option')).toHaveText(['Admin', 'Operations', 'Intern']);
 
-  for (const [button, role] of [['Make Superadmin', 'superadmin'], ['Make Ops', 'ops']]) {
-    const patch = page.waitForRequest((r) => r.method() === 'PATCH');
-    await row.getByRole('button', { name: button }).click();
-    expect((await patch).postDataJSON()).toEqual({ role });
-    await expect(row.getByRole('cell').nth(2)).toHaveText(role);
+  for (const role of ['intern', 'superadmin', 'ops']) {
+    const patch = page.waitForResponse((r) => r.request().method() === 'PATCH');
+    await level.selectOption(role);
+    expect((await patch).request().postDataJSON()).toEqual({ role });
+    await expect(level).toHaveValue(role);
     expect(await roleOnServer()).toBe(role);
   }
 });

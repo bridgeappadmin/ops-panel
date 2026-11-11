@@ -11,8 +11,12 @@ export const SEED_FILE = path.join(__dirname, '.seed.json');
 export interface E2eSeed {
   superadmin: { email: string; password: string; id: string };
   ops: { email: string; password: string; id: string };
+  intern: { email: string; password: string; id: string };
   brand: { id: string; token: string; name: string; city: string };
   creator: { id: string; token: string; balance: number };
+  ticketId: string;
+  reportId: string;
+  campaignId: string;
 }
 
 /** The spec's copy of the seed, handed over by globalSetup. */
@@ -26,7 +30,7 @@ export default async function globalSetup() {
   const lines = readFileSync(SEED_FILE, 'utf8').trim().split('\n');
   const parsed = JSON.parse(lines[lines.length - 1]) as E2eSeed;
   const token = (t: unknown) => typeof t === 'string' && t.split('.').length === 3;
-  if (!parsed.superadmin?.password || !parsed.ops?.password || !token(parsed.brand?.token) || !token(parsed.creator?.token)) {
+  if (!parsed.superadmin?.password || !parsed.ops?.password || !parsed.intern?.password || !parsed.campaignId || !token(parsed.brand?.token) || !token(parsed.creator?.token)) {
     throw new Error(`Unexpected e2e seed: ${lines.join('\n')}`);
   }
   process.env.E2E_SEED = JSON.stringify(parsed);
