@@ -81,8 +81,10 @@ test('jobs list links each row to the campaign, creator and brand pages', async 
   await expect(r.getByRole('link', { name: 'Summer Reels' })).toHaveAttribute('href', '/campaigns/k1');
   await expect(r.getByRole('link', { name: 'Asha Rao' })).toHaveAttribute('href', '/creators/c1');
   await expect(r.getByRole('link', { name: 'Cafe Blue' })).toHaveAttribute('href', '/brands/b1');
+  await expect(page.getByLabel('Search')).toHaveCount(0);
   await page.getByRole('button', { name: 'Completed' }).click();
   await expect.poll(() => calls.at(-1)?.url()).toContain('status=completed&page=1');
+  expect(calls.every((c) => !new URL(c.url()).searchParams.has('q'))).toBe(true);
 });
 
 test('a job with a deleted creator shows "Deleted account"', async ({ page }) => {

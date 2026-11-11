@@ -13,8 +13,8 @@ export interface Filter { label: string; value: string }
  * A searchable, filterable, paged list of `GET {path}?q=&status=&page=`. The first column links to `rowHref(row)`.
  * `filters` are status chips ('' = no filter); the search waits 300 ms after the last keystroke.
  */
-export function ListPage<T extends { _id: string }>({ path, filters, columns, rowHref, searchLabel = 'Search' }: {
-  path: string; filters: Filter[]; columns: Column<T>[]; rowHref: (row: T) => string; searchLabel?: string;
+export function ListPage<T extends { _id: string }>({ path, filters, columns, rowHref, searchLabel = 'Search', hideSearch = false }: {
+  path: string; filters: Filter[]; columns: Column<T>[]; rowHref: (row: T) => string; searchLabel?: string; hideSearch?: boolean;
 }) {
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState({ q: '', status: '', page: 1 });
@@ -42,7 +42,7 @@ export function ListPage<T extends { _id: string }>({ path, filters, columns, ro
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <Field label={searchLabel} type="search" value={typed} maxLength={100} onChange={(e) => setTyped(e.target.value)} className="w-full sm:w-80" />
+        {hideSearch ? null : <Field label={searchLabel} type="search" value={typed} maxLength={100} onChange={(e) => setTyped(e.target.value)} className="w-full sm:w-80" />}
         <div className="flex flex-wrap gap-2 pb-1.5">
           {filters.map((f) => <Chip key={f.value} label={f.label} selected={query.status === f.value} onClick={() => setQuery({ ...query, status: f.value, page: 1 })} />)}
         </div>

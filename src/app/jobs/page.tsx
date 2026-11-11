@@ -17,6 +17,7 @@ function JobsTable() {
   return (
     <ListPage<JobRow>
       path="/admin/jobs"
+      hideSearch
       filters={FILTERS}
       // The first column is the row's own link; the party columns carry their own, so it is the date and the row falls back to /jobs.
       rowHref={(r) => (r.campaign ? `/campaigns/${r.campaign._id}` : '/jobs')}
