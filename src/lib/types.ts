@@ -197,3 +197,30 @@ export interface CampaignDetail {
   applicationCounts: { pending: number; accepted: number; rejected: number; hired: number };
   jobs: JobRow[]; reports: AccountReportRow[]; history: AdminActionView[];
 }
+
+export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed';
+export type ReportResolution = 'none' | 'hidden' | 'account_suspended' | 'warning';
+export type ReportTargetType = 'profile' | 'campaign' | 'media' | 'review' | 'message';
+export type ModerationAction = 'reviewing' | 'dismiss' | 'warn' | 'hide' | 'restore' | 'suspend' | 'unsuspend';
+/** `reporter` / `subject` are null when that account is deleted. */
+export interface ReportPerson { _id: string; role: 'creator' | 'brand'; name: string }
+/** `GET /moderation/reports` (enveloped). `snapshot` is user-written text: render it as text only. */
+export interface ModerationReport {
+  _id: string; reason: string; details?: string; snapshot?: string; status: ReportStatus; resolution: ReportResolution;
+  targetType: ReportTargetType; targetId: string; mediaUrl?: string; createdAt: string;
+  reporter: ReportPerson | null; subject: ReportPerson | null;
+}
+
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+/** `GET /admin/tickets`. `user` is null when that account is deleted. */
+export interface TicketRow { _id: string; subject: string; status: TicketStatus; userRole: 'creator' | 'brand'; user: { _id: string; name: string } | null; createdAt: string; updatedAt: string }
+export interface TicketView {
+  _id: string; subject: string; description: string; attachments?: string[]; status: TicketStatus; userRole: 'creator' | 'brand'; createdAt: string;
+  notes: { text: string; at: string; admin: { _id: string; name: string } | null }[];
+}
+/** `GET /admin/tickets/:id`. */
+export interface TicketDetail {
+  ticket: TicketView;
+  user: { _id: string; role: 'creator' | 'brand'; name: string; email?: string; phoneNumber?: string } | null;
+  history: AdminActionView[];
+}
