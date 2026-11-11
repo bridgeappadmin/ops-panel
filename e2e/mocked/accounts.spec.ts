@@ -80,6 +80,24 @@ test('suspend needs a reason, and an account held by a report shows "Suspended b
   await expect(page.getByText('Suspended by a user report — lift it from Moderation')).toBeVisible();
 });
 
+// The server's envelope moves `msg` out of `data` (into `message`), so these replies carry only what `data` does.
+test('unsuspend says whether a report suspension is still in force', async ({ page }) => {
+  const byAdmin = { admin: { by: { _id: 'a1', name: 'Meera' }, reason: 'spam', at: '2026-10-03T00:00:00Z' }, reportId: null };
+  await mockApi(page, {
+    'GET /admin/accounts/brands/b1': () => brand({ moderationSuspended: true }, byAdmin),
+    'POST /admin/accounts/brands/b1/unsuspend': () => ok({ stillSuspendedByReport: true }),
+    'GET /admin/accounts/brands/b2': () => brand({ _id: 'b2', moderationSuspended: true }, byAdmin),
+    'POST /admin/accounts/brands/b2/unsuspend': () => ok({ stillSuspendedByReport: false }),
+  });
+  await signIn(page);
+  for (const [id, text] of [['b1', 'Panel suspension lifted; a report suspension is still in force'], ['b2', 'Account unsuspended']]) {
+    await page.goto(`/brands/${id}`);
+    await page.getByRole('button', { name: 'Unsuspend' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Unsuspend' }).click();
+    await expect(page.getByRole('status')).toHaveText(text);
+  }
+});
+
 test('intern sees no Suspend or Adjust buttons', async ({ page }) => {
   await mockApi(page, creatorRoutes());
   await signIn(page, { role: 'intern' });

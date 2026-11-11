@@ -43,8 +43,9 @@ export function AccountCard({ kind, profile, suspension, onChanged, extra }: {
     setBusy(true);
     setNotice(null);
     try {
-      const r = await api<{ msg: string }>(`${base}/unsuspend`, { method: 'POST' });
-      setNotice({ tone: 'success', text: r.msg });
+      // The server's `msg` goes to the envelope's `message`, which api() drops; `data` keeps the outcome.
+      const r = await api<{ stillSuspendedByReport: boolean }>(`${base}/unsuspend`, { method: 'POST' });
+      setNotice({ tone: 'success', text: r.stillSuspendedByReport ? 'Panel suspension lifted; a report suspension is still in force' : 'Account unsuspended' });
       onChanged();
     } catch (e) { setNotice({ tone: 'error', text: (e as Error).message }); } finally { setBusy(false); setDialog(null); }
   }
