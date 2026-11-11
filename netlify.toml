@@ -4,3 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Netlify's Next.js runtime builds the server functions that render every page. Without it the
+# raw .next folder is published as static files: every page 404s and the server bundles are public.
+# Declared here so it runs even when the site's auto-detection didn't switch it on.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

@@ -95,7 +95,9 @@ Notes:
 
 ## Deployment
 
-The panel is a Netlify site (`netlify.toml`: `npm run build`, publish `.next`, Node 20; Netlify detects Next.js).
+The panel is a Netlify site (`netlify.toml`: `npm run build`, publish `.next`, Node 20, and the `@netlify/plugin-nextjs`
+runtime declared explicitly). If a deploy shows Netlify's own "Page not found" on every path while `/BUILD_ID` loads,
+the runtime didn't run: check the deploy log lists `@netlify/plugin-nextjs`, then "Clear cache and deploy site".
 
 1. New site from this repo, base directory left empty (the app is at the repo's root). Set `OPS_API_URL=https://api.tazmify.com` in the site's environment
    (it is also committed in `.env.production`, which `npm run build` reads). It is baked in at build time, so change it
