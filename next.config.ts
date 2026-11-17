@@ -20,13 +20,17 @@ export default function config(phase: string): NextConfig {
     async rewrites() {
       return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
     },
-    // No page may be framed (clickjacking): the old portal had this from helmet.
+    // No page may be framed (clickjacking), and pages only talk to this app and, for the sign-in, the API (OPS-4).
+    // ponytail: no script-src: Next's inline bootstrap scripts need a per-request nonce (middleware). Add one if
+    // the panel ever renders HTML it didn't write.
     async headers() {
       return [{
         source: '/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'same-origin' },
+          { key: 'Content-Security-Policy', value: `frame-ancestors 'none'; connect-src 'self' ${apiUrl}; object-src 'none'; base-uri 'self'; form-action 'self'` },
         ],
       }];
     },

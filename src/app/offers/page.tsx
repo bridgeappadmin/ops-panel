@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { OfferStatusPill } from '@/components/OfferStatusPill';
-import { Card, Icon, Skeleton, Table, Tabs, Td, Th } from '@/components/ui';
+import { Card, Icon, Pager, Skeleton, Table, Tabs, Td, Th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatIstDateTime, formatNumber } from '@/lib/format';
 import { fundedByLabel } from '@/lib/offers';
@@ -35,6 +35,7 @@ export default function OffersPage() {
 
 function Offers() {
   const [status, setStatus] = useState<'' | OfferStatus>('');
+  const [page, setPage] = useState(1); // 50 a page (offer.service.ts)
   const [budget, setBudget] = useState<Budget | null>(null);
   const [budgetError, setBudgetError] = useState('');
   const [offers, setOffers] = useState<OfferPage | null>(null);
@@ -45,12 +46,12 @@ function Offers() {
   }, []);
   useEffect(() => {
     let current = true;
-    api<OfferPage>(`/admin/offers${status ? `?status=${status}` : ''}`).then(
+    api<OfferPage>(`/admin/offers?${new URLSearchParams({ ...(status && { status }), page: String(page) })}`).then(
       (page) => { if (current) { setOffers(page); setError(''); } },
       (e: Error) => { if (current) setError(e.message); },
     );
     return () => { current = false; };
-  }, [status]);
+  }, [status, page]);
 
   const pct = budget?.capConnects ? Math.min(100, Math.round((budget.usedConnects / budget.capConnects) * 100)) : 0;
   return (
@@ -77,7 +78,7 @@ function Offers() {
       </Card>
       <Card padded={false}>
         <div className="border-b border-line px-5">
-          <Tabs label="Filter by status" options={FILTERS} value={status} onChange={(v) => { setOffers(null); setStatus(v); }} />
+          <Tabs label="Filter by status" options={FILTERS} value={status} onChange={(v) => { setOffers(null); setStatus(v); setPage(1); }} />
         </div>
         {error ? <p role="alert" className="px-5 pt-4 text-danger-ink">{error}</p> : null}
         {offers === null ? (
@@ -104,6 +105,7 @@ function Offers() {
             </tbody>
           </Table>
         )}
+        {offers ? <Pager page={offers.page} totalPages={offers.totalPages} onPage={(p) => { setOffers(null); setPage(p); }} /> : null}
       </Card>
     </div>
   );

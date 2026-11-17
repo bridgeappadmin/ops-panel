@@ -3,6 +3,9 @@ import { fromOffer, toCreateBody, type OfferFormValues } from '../../src/lib/off
 import type { Offer, Venue } from '../../src/lib/types';
 import { expect, fail, mockApi, ok, signIn, test } from './helpers';
 
+// A browser outside India (OPS-3): the dates typed and shown are still IST.
+test.use({ timezoneId: 'America/New_York' });
+
 const offer: Offer = {
   _id: 'o1', brandId: 'b1', title: 'Free coffee', description: 'A cup on us', terms: 'One per person', deliverables: 'One story',
   address: '1 MG Road', location: { type: 'Point', coordinates: [77.59, 12.97] }, discountInr: 150, connectsCost: 40,
@@ -77,10 +80,12 @@ test('creates the offer and opens it', async ({ page }) => {
   await signIn(page);
   await page.goto('/offers/new');
   await fillCreate(page);
+  await expect(page.getByLabel('Starts (IST)')).toHaveValue(values.startsAt);
   await page.getByRole('button', { name: 'Create offer' }).click();
   await expect(page).toHaveURL('/offers/o9');
   const posts = calls.filter((r) => r.method() === 'POST');
   expect(posts).toHaveLength(1);
+  expect(posts[0].postDataJSON()).toMatchObject({ startsAt: '2026-11-01T04:30:00.000Z', endsAt: '2026-12-01T04:30:00.000Z' });
   expect(posts[0].postDataJSON()).toEqual(toCreateBody(values));
 });
 
@@ -348,8 +353,8 @@ test.describe('Google Maps link', () => {
   });
 });
 
-test('pre-fills Starts with the current local time to the minute', async ({ page }) => {
-  await page.clock.install({ time: new Date(2026, 10, 1, 10, 7, 45) });
+test('pre-fills Starts with the current IST time to the minute', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-01T10:07:45+05:30') });
   await mockApi(page, {});
   await signIn(page);
   await page.goto('/offers/new');

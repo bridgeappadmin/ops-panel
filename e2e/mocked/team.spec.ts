@@ -68,9 +68,14 @@ test('disables and switches role', async ({ page }) => {
   await signIn(page);
   await page.goto('/team');
   const row = page.getByRole('row', { name: /Ravi/ });
+  const dialog = page.getByRole('dialog');
   await row.getByRole('button', { name: 'Disable' }).click();
+  await expect(dialog).toContainText('Ravi is signed out now');
+  await dialog.getByRole('button', { name: 'Disable' }).click();
   await expect(row).toContainText('Disabled');
   await row.getByLabel('Level for Ravi').selectOption('superadmin');
+  await expect(dialog).toContainText('Ravi becomes Admin');
+  await dialog.getByRole('button', { name: 'Make Admin' }).click();
   await expect(row.getByLabel('Level for Ravi')).toHaveValue('superadmin');
   expect(bodies(calls, 'PATCH', '/admin/admins/a2')).toEqual([{ disabled: true }, { role: 'superadmin' }]);
   const before = gets(calls);
@@ -125,7 +130,23 @@ test('shows the self-change refusal', async ({ page }) => {
   await signIn(page);
   await page.goto('/team');
   await page.getByRole('row', { name: /Asha/ }).getByRole('button', { name: 'Disable' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Disable' }).click();
   await expect(page.getByText("You can't change your own role or disable yourself")).toBeVisible();
+});
+
+test('asks before a level change or a disable, and Cancel sends nothing (OPS-8)', async ({ page }) => {
+  const calls = await mockApi(page, { 'GET /admin/admins': () => ok({ admins: [acct()] }) });
+  await signIn(page);
+  await page.goto('/team');
+  const row = page.getByRole('row', { name: /Ravi/ });
+  const dialog = page.getByRole('dialog');
+  await row.getByLabel('Level for Ravi').selectOption('superadmin');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row.getByLabel('Level for Ravi')).toHaveValue('ops');
+  await row.getByRole('button', { name: 'Disable' }).click();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row).toContainText('Active');
+  expect(calls.filter((r) => r.method() === 'PATCH')).toEqual([]);
 });
 
 test('blocks ops from the Team page without a call', async ({ page }) => {

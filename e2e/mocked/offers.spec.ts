@@ -52,6 +52,23 @@ test.describe('list', () => {
     await expect(page.getByRole('main').getByRole('alert')).toHaveText('Internal server error (rayId: AbC123)');
   });
 
+  test('pages past the first 50, and a new filter starts again at page 1 (OPS-6)', async ({ page }) => {
+    const calls = await mockApi(page, {
+      'GET /admin/budget': () => ok(budget),
+      'GET /admin/offers': (req) => new URL(req.url()).searchParams.get('page') === '2'
+        ? ok({ results: [offer({ _id: 'o2', title: 'Second page' })], total: 51, page: 2, totalPages: 2 })
+        : ok({ results: [offer()], total: 51, page: 1, totalPages: 2 }),
+    });
+    await signIn(page);
+    await page.goto('/offers');
+    await expect(page.getByText('Page 1 of 2')).toBeVisible();
+    await page.getByRole('navigation', { name: 'Pages' }).getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByText('Second page')).toBeVisible();
+    await expect(page.getByText('Page 2 of 2')).toBeVisible();
+    await page.getByRole('button', { name: 'Paused' }).click();
+    await expect.poll(() => calls.at(-1)?.url()).toContain('/admin/offers?status=paused&page=1');
+  });
+
   test('shows an empty list plainly', async ({ page }) => {
     await mockApi(page, { 'GET /admin/budget': () => ok(budget), 'GET /admin/offers': () => list([]) });
     await signIn(page);

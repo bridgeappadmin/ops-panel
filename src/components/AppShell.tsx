@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { canOpen, homeFor, ROLE_LABEL, SECTIONS, sectionFor, type Section } from '@/lib/roles';
 import { session, useSession } from '@/lib/session';
+import { api } from '@/lib/api';
 import { Avatar, Card, Icon, LogoLockup, type IconName } from './ui';
 
 const ICON: Record<string, IconName> = {
@@ -12,6 +13,13 @@ const ICON: Record<string, IconName> = {
   '/moderation': 'shield', '/tickets': 'message', '/offers': 'tag', '/vouchers': 'ticket', '/reports': 'chart',
   '/settings': 'sliders', '/notifications': 'send', '/team': 'idCard',
 };
+
+// Tells the server so the token stops working now, not in 24 h (OPS-4), and signs out here whatever it answers.
+// api() reads the token before its first await, so clearing the session straight after is safe.
+function signOut() {
+  api('/moderation/logout', { method: 'POST' }).catch(() => {});
+  session.clear();
+}
 
 /**
  * Every signed-in page: the sidebar (the level's sections, the admin's name and Sign out), a top bar with the
@@ -81,7 +89,7 @@ export function AppShell({ title, description, actions, hideTitle = false, child
                 <p className="truncate text-small-sb text-white">{s.name}</p>
                 <p className="text-caption text-sidebar-muted">{ROLE_LABEL[s.role]}</p>
               </div>
-              <button type="button" aria-label="Sign out" title="Sign out" onClick={() => session.clear()} className="inline-flex size-10 items-center justify-center rounded-sm text-sidebar-text transition-colors outline-lavender hover:bg-white/6 hover:text-white focus-visible:outline-2">
+              <button type="button" aria-label="Sign out" title="Sign out" onClick={signOut} className="inline-flex size-10 items-center justify-center rounded-sm text-sidebar-text transition-colors outline-lavender hover:bg-white/6 hover:text-white focus-visible:outline-2">
                 <Icon name="logout" />
               </button>
             </div>

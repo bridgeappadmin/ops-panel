@@ -89,6 +89,7 @@ function History({ refresh }: { refresh: number }) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<AccountPage<BroadcastRow> | null>(null);
   const [error, setError] = useState('');
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let stale = false;
@@ -97,7 +98,14 @@ function History({ refresh }: { refresh: number }) {
       (e: Error) => { if (!stale) setError(e.message); },
     );
     return () => { stale = true; };
-  }, [page, refresh]);
+  }, [page, refresh, tick]);
+
+  // While a push is still going out, re-read every 5 s so its status settles without a reload.
+  useEffect(() => {
+    if (!data?.results.some((b) => b.status === 'queued' || b.status === 'sending')) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), 5_000);
+    return () => clearTimeout(timer);
+  }, [data]);
 
   if (error) return <p role="alert" className="text-danger-ink">{error}</p>;
   if (!data) return <Skeleton className="h-40 w-full" />;

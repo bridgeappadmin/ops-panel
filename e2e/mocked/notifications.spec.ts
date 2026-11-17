@@ -108,3 +108,23 @@ test('an audience count error clears once a later count works', async ({ page })
   await expect(page.getByText('7 accounts', { exact: true })).toBeVisible();
   await expect(error).toHaveCount(0);
 });
+
+test('history re-reads every 5 s while a push is still going out, and stops once it is done', async ({ page }) => {
+  await page.clock.install();
+  let status = 'sending';
+  let gets = 0;
+  await mockApi(page, {
+    'GET /admin/broadcasts': () => { gets++; return ok({ results: [{ ...row, status }], total: 1, page: 1, totalPages: 1 }); },
+    'GET /admin/broadcasts/audience': () => ok({ count: 3 }),
+  });
+  await signIn(page);
+  await page.goto('/notifications');
+  const r = page.getByRole('row', { name: /Hi/ });
+  await expect(r).toContainText('Sending');
+  status = 'sent';
+  await page.clock.fastForward(5_000);
+  await expect(r).toContainText('Sent');
+  const settled = gets;
+  await page.clock.fastForward(20_000);
+  expect(gets).toBe(settled);
+});

@@ -46,7 +46,8 @@ async function asSuperadmin(page: Page) {
 }
 
 /** datetime-local wants the browser's local time; the browser and this process share the machine's time zone. */
-const localInput = (ms: number) => new Date(ms - new Date(ms).getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+// The form's datetime-local value: IST wall time (OPS-3).
+const istInput = (ms: number) => new Date(ms + 330 * 60_000).toISOString().slice(0, 16);
 // '26 Oct, 5:30 PM'
 const IST = /\d{1,2} [A-Z][a-z]{2}, \d{1,2}:\d{2} [AP]M/;
 const istMonth = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 7);
@@ -68,8 +69,8 @@ async function createOffer(page: Page, o: { title: string; discount: number; cos
   await page.getByLabel('Cost (Connects)').fill(String(o.cost));
   await page.getByLabel('Coupons', { exact: true }).fill(String(o.coupons));
   await page.getByRole('radio', { name: o.funder }).check();
-  await expect(page.getByLabel('Starts', { exact: true })).toHaveValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/); // pre-filled with now, to the minute, so creators can claim at once
-  await page.getByLabel('Ends', { exact: true }).fill(localInput(Date.now() + 7 * DAY));
+  await expect(page.getByLabel('Starts (IST)', { exact: true })).toHaveValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/); // pre-filled with now, to the minute, so creators can claim at once
+  await page.getByLabel('Ends (IST)', { exact: true }).fill(istInput(Date.now() + 7 * DAY));
   if (o.minFollowers !== undefined) {
     await page.getByRole('button', { name: 'Add requirement' }).click();
     await page.getByLabel('Platform 1').selectOption('instagram');
@@ -262,13 +263,13 @@ test('ends an offer', async ({ page }) => {
 test('edits requirements, coordinates and the end date', async ({ page }) => {
   await asSuperadmin(page);
   const before = await getOffer(offerId);
-  const ends = localInput(Date.now() + 14 * DAY);
+  const ends = istInput(Date.now() + 14 * DAY);
 
   await page.goto(`/offers/${offerId}/edit`);
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue(FIRST.newTitle);
   await page.getByRole('button', { name: 'Enter coordinates instead' }).click();
   await page.getByLabel('Coordinates (lat, lng)').fill('12.9352, 77.6245');
-  await page.getByLabel('Ends', { exact: true }).fill(ends);
+  await page.getByLabel('Ends (IST)', { exact: true }).fill(ends);
   await page.getByLabel('Minimum 1').fill('5000');
   await page.getByRole('button', { name: 'Add requirement' }).click();
   await page.getByLabel('Platform 2').selectOption('youtube');
@@ -277,7 +278,7 @@ test('edits requirements, coordinates and the end date', async ({ page }) => {
   const patch = page.waitForRequest((r) => r.method() === 'PATCH');
   await page.getByRole('button', { name: 'Save changes' }).click();
   const requirements = [{ platform: 'instagram', metric: 'followers', min: 5000 }, { platform: 'youtube', metric: 'engagementRate', min: 2.5 }];
-  const endsAt = new Date(ends).toISOString();
+  const endsAt = new Date(`${ends}+05:30`).toISOString();
   expect((await patch).postDataJSON()).toEqual({ endsAt, lat: 12.9352, lng: 77.6245, requirements });
   await expect(page).toHaveURL(new RegExp(`/offers/${offerId}$`));
   await expect(page.getByText('instagram followers at least 5,000; youtube engagement % at least 2.5')).toBeVisible();
@@ -314,6 +315,7 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
 
   const selfRow = page.getByRole('row', { name: /E2E Superadmin/ });
   await selfRow.getByRole('button', { name: 'Disable' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Disable' }).click();
   await expect(page.getByRole('alert').filter({ hasText: "You can't change your own role or disable yourself" })).toBeVisible();
   await expect(selfRow.getByRole('cell').nth(3)).toHaveText('Active');
 
@@ -331,6 +333,7 @@ test('ops vs superadmin', async ({ page, browser }, testInfo) => {
   await expect(ops).toHaveURL(/\/login$/);
 
   await opsRow.getByRole('button', { name: 'Disable' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Disable' }).click();
   await expect(opsRow.getByRole('cell').nth(3)).toHaveText('Disabled');
   await signIn(ops, OPS2.email, OPS2.newPassword);
   await expect(ops.getByLabel('Password')).toHaveAccessibleDescription('Invalid moderator credentials');
@@ -351,6 +354,7 @@ test("switches an admin's role", async ({ page }) => {
   for (const role of ['intern', 'superadmin', 'ops']) {
     const patch = page.waitForResponse((r) => r.request().method() === 'PATCH');
     await level.selectOption(role);
+    await page.getByRole('dialog').getByRole('button', { name: /^Make / }).click();
     expect((await patch).request().postDataJSON()).toEqual({ role });
     await expect(level).toHaveValue(role);
     expect(await roleOnServer()).toBe(role);

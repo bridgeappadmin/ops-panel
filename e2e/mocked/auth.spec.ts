@@ -90,19 +90,31 @@ test('hides Team for ops', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Team' })).toHaveCount(0);
 });
 
-test('signs out', async ({ page }) => {
-  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers });
+test('signs out, and the server drops the token (OPS-4)', async ({ page }) => {
+  const calls = await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers, 'POST /moderation/logout': () => ok({}) });
   await signIn(page);
   await page.goto('/offers');
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/login');
   expect(await page.evaluate(() => ['ops.token', 'ops.role', 'ops.name'].map((k) => sessionStorage.getItem(k)))).toEqual([null, null, null]);
+  await expect.poll(() => calls.find((r) => r.url().endsWith('/api/moderation/logout'))?.headers().authorization).toBe('Bearer test-token');
 });
 
-test('forbids framing', async ({ page }) => {
+test('signs out even when the server cannot be reached', async ({ page }) => {
+  await mockApi(page, { 'GET /admin/budget': budget, 'GET /admin/offers': offers, 'POST /moderation/logout': () => fail(500, 'down') });
+  await signIn(page);
+  await page.goto('/offers');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL('/login');
+});
+
+test('sends the security headers (OPS-4)', async ({ page }) => {
   for (const path of ['/login', '/offers']) {
     const headers = (await page.goto(path))!.headers();
     expect(headers['x-frame-options']).toBe('DENY');
-    expect(headers['content-security-policy']).toBe("frame-ancestors 'none'");
+    expect(headers['x-content-type-options']).toBe('nosniff');
+    expect(headers['referrer-policy']).toBe('same-origin');
+    // The sign-in goes straight to the API (OPS_API_URL, port 9 in these runs); everything else is same-origin.
+    expect(headers['content-security-policy']).toBe("frame-ancestors 'none'; connect-src 'self' http://127.0.0.1:9; object-src 'none'; base-uri 'self'; form-action 'self'");
   }
 });

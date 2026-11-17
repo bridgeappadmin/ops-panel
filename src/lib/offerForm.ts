@@ -27,8 +27,9 @@ function coordsOf(text: string) {
   if (!c) throw new Error('Enter coordinates as "lat, lng"');
   return c;
 }
+// The form's dates are IST (OPS-3), whatever zone the browser is in: datetime-local gives 'YYYY-MM-DDTHH:mm'.
 function isoOf(local: string, label: string) {
-  const d = new Date(local);
+  const d = new Date(`${local}+05:30`);
   if (!local || Number.isNaN(d.getTime())) throw new Error(`Enter the ${label} date`);
   return d.toISOString();
 }
@@ -51,18 +52,18 @@ export function toCreateBody(v: OfferFormValues): CreateOfferInput {
   };
 }
 
-/** datetime-local wants the browser's local time, not UTC. */
-const toLocalInput = (iso: string) => new Date(new Date(iso).getTime() - new Date(iso).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+/** An instant as IST wall time, in datetime-local format. */
+const toIstInput = (iso: string) => new Date(new Date(iso).getTime() + 330 * 60000).toISOString().slice(0, 16);
 
-/** The current local time to the minute, in datetime-local format. */
-export const nowLocalInput = (now: Date = new Date()) => toLocalInput(now.toISOString());
+/** The current IST time to the minute, in datetime-local format. */
+export const nowIstInput = (now: Date = new Date()) => toIstInput(now.toISOString());
 
 export function fromOffer(o: Offer): OfferFormValues {
   return {
     brandId: o.brandId, coords: `${o.location.coordinates[1]}, ${o.location.coordinates[0]}`, address: o.address,
     discountInr: String(o.discountInr), connectsCost: String(o.connectsCost), totalCoupons: String(o.totalCoupons),
     fundedBy: o.fundedBy, voucherValidityDays: String(o.voucherValidityDays),
-    startsAt: toLocalInput(o.startsAt), endsAt: toLocalInput(o.endsAt),
+    startsAt: toIstInput(o.startsAt), endsAt: toIstInput(o.endsAt),
     requirements: o.requirements.map((r) => ({ platform: r.platform, metric: r.metric, min: String(r.min) })),
     title: o.title, description: o.description, terms: o.terms, deliverables: o.deliverables ?? '',
   };

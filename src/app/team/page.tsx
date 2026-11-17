@@ -30,6 +30,8 @@ function Team() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [resetFor, setResetFor] = useState<AdminAccount | null>(null);
+  // A level change or a disable signs that admin out, so it asks first (OPS-8). Enable goes straight through.
+  const [pending, setPending] = useState<{ a: AdminAccount; body: UpdateAdminInput } | null>(null);
 
   const load = async () => {
     try {
@@ -76,7 +78,7 @@ function Team() {
                   <Td><span className="flex items-center gap-3"><Avatar name={a.name} /><span className="font-semibold">{a.name}</span></span></Td>
                   <Td className="break-all text-ink-muted">{a.email}</Td>
                   <Td>
-                    <select aria-label={`Level for ${a.name}`} value={a.role} disabled={busy} onChange={(e) => patch(a, { role: e.target.value as AdminRole })} className={SELECT_SMALL}>
+                    <select aria-label={`Level for ${a.name}`} value={a.role} disabled={busy} onChange={(e) => setPending({ a, body: { role: e.target.value as AdminRole } })} className={SELECT_SMALL}>
                       {LEVELS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                     </select>
                   </Td>
@@ -84,7 +86,7 @@ function Team() {
                   <Td className="whitespace-nowrap text-ink-muted">{formatIstDateTime(a.createdAt)}</Td>
                   <Td>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" size="sm" disabled={busy} onClick={() => patch(a, { disabled: !a.disabled })}>{a.disabled ? 'Enable' : 'Disable'}</Button>
+                      <Button variant="secondary" size="sm" disabled={busy} onClick={() => (a.disabled ? patch(a, { disabled: false }) : setPending({ a, body: { disabled: true } }))}>{a.disabled ? 'Enable' : 'Disable'}</Button>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => setResetFor(a)}>Reset password</Button>
                     </div>
                   </Td>
@@ -93,6 +95,22 @@ function Team() {
           </tbody>
         </Table>
       </Card>
+      {pending ? (
+        <ConfirmDialog
+          open
+          title={pending.body.role ? 'Change level' : `Disable ${pending.a.name}`}
+          confirmLabel={pending.body.role ? `Make ${ROLE_LABEL[pending.body.role]}` : 'Disable'}
+          danger={!pending.body.role}
+          onConfirm={() => { setPending(null); void patch(pending.a, pending.body); }}
+          onClose={() => setPending(null)}
+        >
+          <p className="text-body text-ink-muted">
+            {pending.body.role
+              ? `${pending.a.name} becomes ${ROLE_LABEL[pending.body.role]}. They are signed out and sign in again with the new level.`
+              : `${pending.a.name} is signed out now and can't sign in until someone enables them.`}
+          </p>
+        </ConfirmDialog>
+      ) : null}
       <AddAdmin onAdd={(input) => act(() => api<AdminResponse>('/admin/admins', { method: 'POST', body: input satisfies CreateAdminInput }), 'Admin added')} />
       {resetFor ? <ResetPassword
         admin={resetFor}

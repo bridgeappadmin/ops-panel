@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { fromOffer, parseCoords, toCreateBody, toPatchBody, type OfferFormValues } from '../../src/lib/offerForm';
+import { fromOffer, nowIstInput, parseCoords, toCreateBody, toPatchBody, type OfferFormValues } from '../../src/lib/offerForm';
+
+// A machine outside India (OPS-3): the form's dates must still mean IST.
+process.env.TZ = 'America/New_York';
 import type { Offer } from '../../src/lib/types';
 
 const offer: Offer = {
@@ -31,11 +34,16 @@ test('builds the create body', () => {
     brandId: 'b1', title: 'Free coffee', description: 'A cup', terms: 'One', deliverables: '', address: '1 MG Road', lat: 12.97, lng: 77.59,
     discountInr: 150, connectsCost: 40, totalCoupons: 20, fundedBy: 'tazmify', voucherValidityDays: 7,
     requirements: [{ platform: 'instagram', metric: 'followers', min: 3000 }],
-    startsAt: new Date('2026-11-01T10:00').toISOString(), endsAt: new Date('2026-12-01T10:00').toISOString(),
+    startsAt: '2026-11-01T04:30:00.000Z', endsAt: '2026-12-01T04:30:00.000Z',
   });
   expect(() => toCreateBody({ ...v, brandId: '' })).toThrow('Pick a venue');
   expect(() => toCreateBody({ ...v, coords: 'x' })).toThrow('lat, lng');
   expect(() => toCreateBody({ ...v, requirements: [{ platform: 'youtube', metric: 'followers', min: '' }] })).toThrow('minimum');
+});
+
+test('shows and pre-fills the dates in IST', () => {
+  expect(fromOffer(offer)).toMatchObject({ startsAt: '2026-10-01T05:30', endsAt: '2099-01-01T17:30' });
+  expect(nowIstInput(new Date('2026-11-01T04:37:45Z'))).toBe('2026-11-01T10:07');
 });
 
 test('sends nothing when nothing changed', () => expect(toPatchBody(offer, fromOffer(offer))).toEqual({}));

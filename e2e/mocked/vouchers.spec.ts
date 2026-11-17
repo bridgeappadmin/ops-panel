@@ -51,6 +51,7 @@ test('cancels from the lookup and refreshes it', async ({ page }) => {
   await input.fill('TVABCD2345');
   await page.getByRole('button', { name: 'Look up' }).click();
   await page.getByRole('button', { name: 'Cancel & refund' }).click();
+  await expect(page.getByRole('dialog')).not.toContainText('settlement report');
   await input.fill('TVOTHER999'); // edited after the lookup: the refetch must still use the looked-up number
   await page.getByLabel('Reason').fill('Duplicate');
   await page.getByRole('button', { name: 'Confirm refund' }).click();
@@ -59,6 +60,17 @@ test('cancels from the lookup and refreshes it', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Voucher details' })).toContainText('Duplicate');
   await expect(page.getByRole('button', { name: 'Cancel & refund' })).toHaveCount(0);
   expect(numbers(calls)).toEqual(['TVABCD2345', 'TVABCD2345']);
+});
+
+test('warns before cancelling a redeemed voucher (OPS-7)', async ({ page }) => {
+  await mockApi(page, { 'GET /admin/vouchers': () => ok({ voucher: voucher({ status: 'redeemed', redeemedAt: '2026-10-27T10:00:00Z' }) }) });
+  await signIn(page);
+  await page.goto('/vouchers');
+  await page.getByLabel('Voucher number').fill('TVABCD2345');
+  await page.getByRole('button', { name: 'Look up' }).click();
+  await page.getByRole('button', { name: 'Cancel & refund' }).click();
+  await expect(page.getByRole('dialog')).toContainText('already redeemed');
+  await expect(page.getByRole('dialog')).toContainText('settlement report');
 });
 
 test('shows a partial refund as an alert and refreshes', async ({ page }) => {
